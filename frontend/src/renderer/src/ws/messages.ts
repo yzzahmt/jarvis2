@@ -23,6 +23,11 @@ export interface JarvisSettings {
     cloud_model: string | null
   }
   system: { confirm_before_open: boolean }
+  devices: {
+    windows_host: string | null
+    windows_user: string | null
+    windows_ssh_key_path: string | null
+  }
 }
 
 export interface ServerEnvelope<T = unknown> {

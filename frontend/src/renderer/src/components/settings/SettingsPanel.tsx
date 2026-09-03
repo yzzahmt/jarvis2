@@ -184,6 +184,22 @@ export function SettingsPanel({ settings, onChange, onClose }: Props): JSX.Eleme
           </>
         )}
 
+        <div className="settings-row">
+          <label>Windows bilgisayarı (SSH — dosya transferi için)</label>
+          <input
+            type="text"
+            defaultValue={settings.devices.windows_host ?? ''}
+            placeholder="IP adresi ya da hostname"
+            onBlur={(e) => onChange({ devices: { windows_host: e.target.value } })}
+          />
+          <input
+            type="text"
+            defaultValue={settings.devices.windows_user ?? ''}
+            placeholder="Windows kullanıcı adı"
+            onBlur={(e) => onChange({ devices: { windows_user: e.target.value } })}
+          />
+        </div>
+
         <button className="settings-close" onClick={onClose}>
           Kapat
         </button>

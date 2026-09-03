@@ -1,16 +1,17 @@
-export type ThemeName = 'cyberpunk' | 'apple' | 'modern'
+export type ThemeName = 'cyberpunk' | 'premium' | 'modern'
 
 export const THEME_LABELS: Record<ThemeName, string> = {
   cyberpunk: 'Cyberpunk',
-  apple: 'Apple',
+  premium: 'Platin',
   modern: 'Modern'
 }
 
 /**
  * Each theme is a flat set of CSS custom properties applied on
  * documentElement via [data-theme]. Cyberpunk gets the deepest visual
- * treatment (glow, scanlines) since it's the primary Jarvis-style look;
- * apple/modern are deliberately calmer variants sharing the same structure.
+ * treatment (HUD grid, scanline sweep, targeting rings — see global.css
+ * [data-theme='cyberpunk'] rules) since it's the primary Jarvis-style look;
+ * premium/modern are calmer variants sharing the same structure.
  */
 export const THEME_VARS: Record<ThemeName, Record<string, string>> = {
   cyberpunk: {
@@ -27,20 +28,19 @@ export const THEME_VARS: Record<ThemeName, Record<string, string>> = {
     '--orb-glow': '0 0 60px rgba(0, 229, 255, 0.55), 0 0 140px rgba(255, 46, 136, 0.25)',
     '--radius': '18px'
   },
-  apple: {
-    '--bg': '#f5f5f7',
-    '--bg-elevated': '#ffffff',
-    '--panel': 'rgba(255, 255, 255, 0.75)',
-    '--panel-border': 'rgba(0, 0, 0, 0.08)',
-    '--accent': '#0a84ff',
-    '--accent-soft': 'rgba(10, 132, 255, 0.25)',
-    '--accent-2': '#5e5ce6',
-    '--text': '#1d1d1f',
-    '--text-dim': '#6e6e73',
-    '--font':
-      "-apple-system, BlinkMacSystemFont, 'SF Pro Text', ui-sans-serif, system-ui, sans-serif",
-    '--orb-glow': '0 0 40px rgba(10, 132, 255, 0.35)',
-    '--radius': '22px'
+  premium: {
+    '--bg': '#0c0b09',
+    '--bg-elevated': '#151310',
+    '--panel': 'rgba(28, 24, 18, 0.65)',
+    '--panel-border': 'rgba(212, 175, 122, 0.28)',
+    '--accent': '#d4af7a',
+    '--accent-soft': 'rgba(212, 175, 122, 0.28)',
+    '--accent-2': '#f5e6c8',
+    '--text': '#f3ede2',
+    '--text-dim': '#a89a86',
+    '--font': "'New York', ui-serif, Georgia, 'Iowan Old Style', serif",
+    '--orb-glow': '0 0 50px rgba(212, 175, 122, 0.45), 0 0 120px rgba(245, 230, 200, 0.15)',
+    '--radius': '26px'
   },
   modern: {
     '--bg': '#111318',

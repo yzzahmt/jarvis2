@@ -22,6 +22,11 @@ function App(): JSX.Element {
   return (
     <div className="app-shell">
       <div className="stage">
+        <div className="hud-corner tl" />
+        <div className="hud-corner tr" />
+        <div className="hud-corner bl" />
+        <div className="hud-corner br" />
+
         <button className="settings-trigger no-drag" onClick={() => setSettingsOpen(true)}>
           ⚙
         </button>

@@ -21,6 +21,21 @@ export function JarvisOrb(): JSX.Element {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
       <div style={{ position: 'relative', width: 220, height: 220 }}>
+        <motion.div
+          className="hud-ring"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+          style={{ position: 'absolute', inset: -14 }}
+        >
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div
+              key={i}
+              className="hud-tick"
+              style={{ transform: `rotate(${i * 30}deg) translateY(-124px)` }}
+            />
+          ))}
+        </motion.div>
+
         {Array.from({ length: RING_COUNT }).map((_, i) => (
           <motion.div
             key={i}
@@ -76,6 +91,9 @@ export function JarvisOrb(): JSX.Element {
       </div>
 
       <div className="state-label">{STATE_LABEL[state] ?? state}</div>
+      <div className="hud-readout">
+        LVL {audioLevel.toFixed(2)} · SYS.{state.toUpperCase()}
+      </div>
     </div>
   )
 }

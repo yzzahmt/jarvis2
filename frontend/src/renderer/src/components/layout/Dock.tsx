@@ -12,14 +12,6 @@ export function Dock({ onPushToTalkStart, onPushToTalkStop, onTextSend }: Props)
   const state = useJarvisStore((s) => s.state)
   const isListening = state === 'listening'
 
-  if (settings?.input_mode === 'text') {
-    return (
-      <div className="dock">
-        <TextInputBar onSend={onTextSend} />
-      </div>
-    )
-  }
-
   return (
     <div className="dock">
       <button
@@ -29,6 +21,7 @@ export function Dock({ onPushToTalkStart, onPushToTalkStop, onTextSend }: Props)
       >
         {isListening ? 'Dinliyor... (durdurmak için tıkla)' : 'Konuşmak için tıkla'}
       </button>
+      <TextInputBar onSend={onTextSend} />
     </div>
   )
 }

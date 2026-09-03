@@ -48,16 +48,26 @@ class SystemSettings(BaseModel):
     confirm_before_open: bool = False
 
 
+class DevicesSettings(BaseModel):
+    # Windows PC reached over SSH for cross-device file transfer. Requires
+    # OpenSSH Server enabled on the Windows side (Settings > Apps > Optional
+    # Features > OpenSSH Server) and a key or password set up once by hand.
+    windows_host: Optional[str] = None
+    windows_user: Optional[str] = None
+    windows_ssh_key_path: Optional[str] = None
+
+
 class JarvisConfig(BaseModel):
     version: int = 1
     voice: VoiceSettings = Field(default_factory=VoiceSettings)
-    theme: Literal["cyberpunk", "apple", "modern"] = "cyberpunk"
+    theme: Literal["cyberpunk", "premium", "modern"] = "cyberpunk"
     input_mode: Literal["voice", "text"] = "voice"
     wake_word: WakeWordSettings = Field(default_factory=WakeWordSettings)
     clap_trigger: ClapSettings = Field(default_factory=ClapSettings)
     stt: SttSettings = Field(default_factory=SttSettings)
     llm: LlmSettings = Field(default_factory=LlmSettings)
     system: SystemSettings = Field(default_factory=SystemSettings)
+    devices: DevicesSettings = Field(default_factory=DevicesSettings)
 
 
 def load_config() -> JarvisConfig:

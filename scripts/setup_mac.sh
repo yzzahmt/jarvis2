@@ -42,6 +42,15 @@ pip install --upgrade pip -q
 echo "[setup] installing backend package..."
 pip install -e "$ROOT_DIR/backend"
 
+echo "[setup] installing Playwright's Chromium (shopping/price-compare tools)..."
+python -m playwright install chromium
+
+echo ""
+echo "NOTE: hand-gesture control and shopping/system tools need extra macOS"
+echo "permissions the first time they run — Camera, Accessibility, and Screen"
+echo "Recording for whatever process runs 'uvicorn' (usually Terminal). macOS"
+echo "will prompt automatically; approve in System Settings > Privacy & Security."
+
 echo "[setup] downloading openWakeWord models (includes 'hey_jarvis')..."
 python -c "from openwakeword.utils import download_models; download_models()"
 

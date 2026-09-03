@@ -56,6 +56,91 @@ input {
   padding: 40px 24px 0;
 }
 
+/* --- Cyberpunk HUD dressing: grid backdrop, scanline sweep, corner brackets --- */
+.stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0, 229, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.07) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(ellipse at center, black 0%, transparent 72%);
+  transition: opacity 0.4s ease;
+}
+
+.stage::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  box-shadow: 0 0 12px 1px var(--accent);
+  animation: hud-scanline 5s linear infinite;
+}
+
+[data-theme='cyberpunk'] .stage::before,
+[data-theme='cyberpunk'] .stage::after {
+  opacity: 1;
+}
+
+@keyframes hud-scanline {
+  0% {
+    top: 0%;
+  }
+  100% {
+    top: 100%;
+  }
+}
+
+.hud-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  opacity: 0;
+  pointer-events: none;
+  border-color: var(--accent-soft);
+  transition: opacity 0.4s ease;
+}
+
+[data-theme='cyberpunk'] .hud-corner {
+  opacity: 0.8;
+}
+
+.hud-corner.tl {
+  top: 14px;
+  left: 14px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+
+.hud-corner.tr {
+  top: 14px;
+  right: 14px;
+  border-top: 2px solid;
+  border-right: 2px solid;
+}
+
+.hud-corner.bl {
+  bottom: 14px;
+  left: 14px;
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+}
+
+.hud-corner.br {
+  bottom: 14px;
+  right: 14px;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+}
+
 .status-pill {
   position: absolute;
   top: 20px;
@@ -113,6 +198,40 @@ input {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--accent);
+}
+
+.hud-ring {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+[data-theme='cyberpunk'] .hud-ring {
+  opacity: 1;
+}
+
+.hud-tick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 8px;
+  margin-left: -1px;
+  margin-top: -4px;
+  background: var(--accent-soft);
+}
+
+.hud-readout {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  opacity: 0;
+  height: 0;
+  transition: opacity 0.4s ease;
+}
+
+[data-theme='cyberpunk'] .hud-readout {
+  opacity: 0.8;
+  height: auto;
 }
 
 .transcript-panel {
