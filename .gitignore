@@ -1,0 +1,11 @@
+node_modules/
+frontend/out/
+frontend/dist/
+frontend/node_modules/
+backend/__pycache__/
+backend/jarvis/__pycache__/
+backend/**/__pycache__/
+backend/*.egg-info/
+backend/jarvis_backend.egg-info/
+*.pyc
+.DS_Store

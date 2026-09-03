@@ -1,0 +1,12 @@
+{
+  "name": "jarvis",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"bash scripts/run_backend.sh\" \"npm --prefix frontend run dev\"",
+    "setup": "bash scripts/setup_mac.sh"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
