@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { AppState, JarvisSettings, ServerMessage, WakeSource } from '../ws/messages'
 
+export type HandPoint = { x: number; y: number }
+
 export interface TranscriptEntry {
   id: string
   role: 'user' | 'assistant'
@@ -19,6 +21,7 @@ interface JarvisStore {
   lastError: { code: string; message: string } | null
   settingsOpen: boolean
   gestureActive: boolean
+  gestureHands: HandPoint[][]
 
   setConnected: (connected: boolean) => void
   setSettingsOpen: (open: boolean) => void
@@ -36,6 +39,7 @@ export const useJarvisStore = create<JarvisStore>((set) => ({
   lastError: null,
   settingsOpen: false,
   gestureActive: false,
+  gestureHands: [],
 
   setConnected: (connected) => set({ connected }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
@@ -73,7 +77,9 @@ export const useJarvisStore = create<JarvisStore>((set) => ({
         case 'error':
           return { lastError: msg.payload }
         case 'gesture_state':
-          return { gestureActive: msg.payload.active }
+          return { gestureActive: msg.payload.active, gestureHands: [] }
+        case 'gesture_landmarks':
+          return { gestureHands: msg.payload.hands }
         default:
           return {}
       }

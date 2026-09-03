@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Apps launched by double-clicking in Finder (unlike a Terminal shell) get a
+# minimal PATH that's missing Homebrew's bin dirs — without this, npm/node/
+# ollama silently "command not found" and the whole launch fails invisibly.
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$PATH"
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_FILE="/tmp/jarvis_dev.log"
 

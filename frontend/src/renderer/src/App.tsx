@@ -4,6 +4,7 @@ import { useJarvisStore } from './state/jarvisStore'
 import { applyTheme, type ThemeName } from './themes/tokens'
 import { JarvisOrb } from './components/orb/JarvisOrb'
 import { AnimatedBackground } from './components/background/AnimatedBackground'
+import { GestureOverlay } from './components/gesture/GestureOverlay'
 import { TranscriptPanel } from './components/chat/TranscriptPanel'
 import { Dock } from './components/layout/Dock'
 import { SettingsPanel } from './components/settings/SettingsPanel'
@@ -23,6 +24,7 @@ function App(): JSX.Element {
   return (
     <div className="app-shell">
       <AnimatedBackground />
+      <GestureOverlay />
       <div className="stage">
         <div className="hud-corner tl" />
         <div className="hud-corner tr" />

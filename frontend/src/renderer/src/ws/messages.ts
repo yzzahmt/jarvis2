@@ -47,6 +47,7 @@ export type ServerMessage =
   | ServerEnvelope<{ rms: number }> & { type: 'audio_level' }
   | ServerEnvelope<{ settings: JarvisSettings }> & { type: 'settings_state' }
   | ServerEnvelope<{ active: boolean }> & { type: 'gesture_state' }
+  | ServerEnvelope<{ hands: { x: number; y: number }[][] }> & { type: 'gesture_landmarks' }
   | ServerEnvelope<{ code: string; message: string }> & { type: 'error' }
 
 export function clientEnvelope(type: string, payload: Record<string, unknown> = {}) {
