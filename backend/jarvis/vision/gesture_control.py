@@ -40,7 +40,7 @@ def _finger_curled(landmarks, tip_idx: int, pip_idx: int) -> bool:
 @dataclass
 class HandState:
     fist: bool
-    index_only: bool
+    bozkurt: bool
     two_finger: bool
     pinching: bool
     index_x: float
@@ -56,7 +56,9 @@ def _classify(landmarks) -> HandState:
     pinky_curled = _finger_curled(landmarks, PINKY_TIP, PINKY_PIP)
 
     fist = index_curled and middle_curled and ring_curled and pinky_curled
-    index_only = (not index_curled) and middle_curled and ring_curled and pinky_curled
+    # Bozkurt / wolf sign: index and pinky extended, middle+ring folded under
+    # the thumb — right-click trigger.
+    bozkurt = (not index_curled) and middle_curled and ring_curled and (not pinky_curled)
     two_finger = (not index_curled) and (not middle_curled) and ring_curled and pinky_curled
 
     thumb = landmarks[THUMB_TIP]
@@ -66,7 +68,7 @@ def _classify(landmarks) -> HandState:
     middle = landmarks[MIDDLE_TIP]
     return HandState(
         fist=fist,
-        index_only=index_only,
+        bozkurt=bozkurt,
         two_finger=two_finger,
         pinching=pinch_dist < PINCH_THRESHOLD,
         index_x=index.x,
@@ -135,7 +137,8 @@ class GestureController:
 
         last_click_t = 0.0
         last_swipe_t = 0.0
-        was_pinching = False
+        was_dragging = False  # fist held = drag
+        pinch_prev = False  # pinch is edge-triggered (a tap), not held
         swipe_anchor: tuple[float, float] | None = None
 
         log.info("gesture control loop started")
@@ -166,7 +169,10 @@ class GestureController:
                     )
                 else:
                     event_bus.emit_threadsafe("gesture_landmarks", {"hands": []})
-                    was_pinching = False
+                    if was_dragging:
+                        pyautogui.mouseUp()
+                        was_dragging = False
+                    pinch_prev = False
                     swipe_anchor = None
                     time.sleep(0.01)
                     continue
@@ -180,22 +186,31 @@ class GestureController:
                 cursor_x += (target_x - cursor_x) * CURSOR_SMOOTHING
                 cursor_y += (target_y - cursor_y) * CURSOR_SMOOTHING
 
-                if state.pinching:
-                    if not was_pinching:
+                # Fist held = drag: mouse down on fist-start, move while held,
+                # release on fist-end.
+                if state.fist:
+                    if not was_dragging:
                         pyautogui.mouseDown()
-                        was_pinching = True
+                        was_dragging = True
                     pyautogui.moveTo(cursor_x, cursor_y)
                 else:
-                    if was_pinching:
+                    if was_dragging:
                         pyautogui.mouseUp()
-                        was_pinching = False
+                        was_dragging = False
 
                     pyautogui.moveTo(cursor_x, cursor_y)
 
-                    if state.fist and now - last_click_t > CLICK_REFRACTORY_S:
-                        pyautogui.click(button="left")
-                        last_click_t = now
-                    elif state.index_only and now - last_click_t > CLICK_REFRACTORY_S:
+                    # Pinch is edge-triggered (a tap, not a hold) so it fires
+                    # one left click per pinch rather than clicking every frame.
+                    if state.pinching:
+                        if not pinch_prev and now - last_click_t > CLICK_REFRACTORY_S:
+                            pyautogui.click(button="left")
+                            last_click_t = now
+                        pinch_prev = True
+                    else:
+                        pinch_prev = False
+
+                    if state.bozkurt and now - last_click_t > CLICK_REFRACTORY_S:
                         pyautogui.click(button="right")
                         last_click_t = now
                     elif state.two_finger:
@@ -223,7 +238,7 @@ class GestureController:
             cap.release()
             hands.close()
             event_bus.emit_threadsafe("gesture_landmarks", {"hands": []})
-            if was_pinching:
+            if was_dragging:
                 pyautogui.mouseUp()
             log.info("gesture control loop stopped")
 

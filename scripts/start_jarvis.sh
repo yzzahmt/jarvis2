@@ -17,5 +17,16 @@ pkill -f "$ROOT_DIR/frontend/node_modules/electron/dist/Electron.app" 2>/dev/nul
 sleep 1
 
 cd "$ROOT_DIR"
-nohup npm run dev > "$LOG_FILE" 2>&1 &
+
+# Production build, not `npm run dev` — electron-vite's dev watcher
+# auto-relaunches the Electron process whenever it exits (that's what makes
+# hot-reload work), which also means quitting the app from the shortcut
+# never actually stuck. A built app has no such watcher.
+{
+  npm --prefix frontend run build
+  bash scripts/run_backend.sh &
+  BACKEND_PID=$!
+  (cd frontend && NODE_ENV=production ./node_modules/.bin/electron .)
+  kill "$BACKEND_PID" 2>/dev/null || true
+} > "$LOG_FILE" 2>&1 &
 disown

@@ -4,10 +4,10 @@ SCHEMA_START = {
         "name": "start_gesture_control",
         "description": (
             "Turn on camera-based hand-gesture control of the mouse/keyboard "
-            "('el kontrolüne geç' / Iron Man mode). Fist = left click, index "
-            "finger only = right click, thumb+index pinch = drag, two-finger "
-            "swipe = scroll or switch tabs. Only call this when the user "
-            "explicitly asks to switch to hand control."
+            "('el kontrolüne geç' / Iron Man mode). Thumb+index pinch = left "
+            "click, bozkurt/wolf sign (index+pinky extended) = right click, "
+            "held fist = drag, two-finger swipe = scroll or switch tabs. Only "
+            "call this when the user explicitly asks to switch to hand control."
         ),
         "parameters": {"type": "object", "properties": {}},
     },
