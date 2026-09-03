@@ -169,7 +169,6 @@ export function SettingsPanel({ settings, onChange, onClose }: Props): JSX.Eleme
                 onChange={(e) => onChange({ llm: { cloud_provider: e.target.value } })}
               >
                 <option value="groq">Groq (ücretsiz katman)</option>
-                <option value="gemini">Google Gemini (ücretsiz katman)</option>
               </select>
             </div>
             <div className="settings-row">

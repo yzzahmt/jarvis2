@@ -39,7 +39,7 @@ class LlmSettings(BaseModel):
     provider: Literal["ollama", "cloud"] = "ollama"
     ollama_model: str = "qwen2.5:7b-instruct"
     ollama_host: str = "http://127.0.0.1:11434"
-    cloud_provider: Optional[Literal["gemini", "groq"]] = None
+    cloud_provider: Optional[Literal["groq"]] = None
     cloud_api_key: Optional[str] = None
     cloud_model: Optional[str] = None
 
