@@ -43,11 +43,17 @@ class GroqClient(LLMClient):
         return ChatResponse(content=message.get("content"), tool_calls=tool_calls)
 
 
+# Free-tier rate limits are tight on the "pro" tier — if the primary model
+# gets a 429, fall back to a cheaper/higher-quota model rather than failing
+# the whole turn.
+GEMINI_FALLBACK_MODELS = ["gemini-flash-latest", "gemini-flash-lite-latest"]
+
+
 class GeminiClient(LLMClient):
     """Free-tier API key from aistudio.google.com. Translates our OpenAI-ish
     message/tool shape into Gemini's contents/functionDeclarations schema."""
 
-    def __init__(self, api_key: str, model: str = "gemini-2.0-flash") -> None:
+    def __init__(self, api_key: str, model: str = "gemini-flash-latest") -> None:
         self.api_key = api_key
         self.model = model
 
@@ -93,28 +99,56 @@ class GeminiClient(LLMClient):
                 }
             ]
 
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.model}:generateContent?key={self.api_key}"
-        )
-        resp = httpx.post(url, json=body, timeout=60)
-        resp.raise_for_status()
-        candidate = resp.json()["candidates"][0]
-        parts = candidate.get("content", {}).get("parts", [])
+        models_to_try = [self.model] + [m for m in GEMINI_FALLBACK_MODELS if m != self.model]
 
-        text_chunks = [p["text"] for p in parts if "text" in p]
-        tool_calls = [
-            ToolCall(id=str(uuid.uuid4()), name=p["functionCall"]["name"], arguments=p["functionCall"].get("args", {}))
-            for p in parts
-            if "functionCall" in p
-        ]
-        content = "\n".join(text_chunks).strip() or None
-        return ChatResponse(content=content, tool_calls=tool_calls)
+        for i, model in enumerate(models_to_try):
+            url = (
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"{model}:generateContent?key={self.api_key}"
+            )
+            try:
+                resp = httpx.post(url, json=body, timeout=60)
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                is_last = i == len(models_to_try) - 1
+                # 429 = quota exhausted, 503 = model temporarily overloaded —
+                # both are worth falling back on rather than failing outright.
+                if exc.response.status_code in (429, 503) and not is_last:
+                    log.warning(
+                        "gemini model '%s' failed (%d), falling back to '%s'",
+                        model,
+                        exc.response.status_code,
+                        models_to_try[i + 1],
+                    )
+                    continue
+                # Never let the API key (it's in the URL query string) leak into
+                # an exception message that ends up in a user-facing error toast.
+                raise RuntimeError(
+                    f"Gemini API error {exc.response.status_code}: {exc.response.text[:300]}"
+                ) from None
+
+            candidate = resp.json()["candidates"][0]
+            parts = candidate.get("content", {}).get("parts", [])
+
+            text_chunks = [p["text"] for p in parts if "text" in p]
+            tool_calls = [
+                ToolCall(
+                    id=str(uuid.uuid4()),
+                    name=p["functionCall"]["name"],
+                    arguments=p["functionCall"].get("args", {}),
+                )
+                for p in parts
+                if "functionCall" in p
+            ]
+            content = "\n".join(text_chunks).strip() or None
+            return ChatResponse(content=content, tool_calls=tool_calls)
+
+        raise RuntimeError("Gemini API error: all models rate-limited")
 
 
 def build_cloud_client(provider: str, api_key: str, model: str | None) -> LLMClient:
     if provider == "groq":
         return GroqClient(api_key, model or "llama-3.3-70b-versatile")
     if provider == "gemini":
-        return GeminiClient(api_key, model or "gemini-2.0-flash")
+        return GeminiClient(api_key, model or "gemini-flash-latest")
     raise ValueError(f"unknown cloud provider '{provider}'")
