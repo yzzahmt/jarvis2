@@ -18,6 +18,7 @@ interface JarvisStore {
   activeTool: { tool: string; args: Record<string, unknown> } | null
   lastError: { code: string; message: string } | null
   settingsOpen: boolean
+  gestureActive: boolean
 
   setConnected: (connected: boolean) => void
   setSettingsOpen: (open: boolean) => void
@@ -34,6 +35,7 @@ export const useJarvisStore = create<JarvisStore>((set) => ({
   activeTool: null,
   lastError: null,
   settingsOpen: false,
+  gestureActive: false,
 
   setConnected: (connected) => set({ connected }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
@@ -70,6 +72,8 @@ export const useJarvisStore = create<JarvisStore>((set) => ({
           return { settings: msg.payload.settings }
         case 'error':
           return { lastError: msg.payload }
+        case 'gesture_state':
+          return { gestureActive: msg.payload.active }
         default:
           return {}
       }

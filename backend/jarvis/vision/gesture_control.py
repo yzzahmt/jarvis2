@@ -119,13 +119,28 @@ class GestureController:
         screen_w, screen_h = pyautogui.size()
         cursor_x, cursor_y = pyautogui.position()
 
+        # Two hands so the debug overlay shows both when present, but only the
+        # first-detected hand ever drives the cursor/clicks — two hands fighting
+        # over one pointer would be unusable.
         hands = mp.solutions.hands.Hands(
-            max_num_hands=1, min_detection_confidence=0.6, min_tracking_confidence=0.5
+            max_num_hands=2, min_detection_confidence=0.6, min_tracking_confidence=0.5
         )
+        drawing = mp.solutions.drawing_utils
+        drawing_styles = mp.solutions.drawing_styles
+
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             log.error("could not open camera for gesture control")
             return
+
+        overlay_window = "Jarvis El Takibi"
+        cv2.namedWindow(overlay_window, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(overlay_window, 360, 270)
+        try:
+            screen_res_w, screen_res_h = pyautogui.size()
+            cv2.moveWindow(overlay_window, screen_res_w - 380, screen_res_h - 320)
+        except Exception:
+            pass
 
         last_click_t = 0.0
         last_swipe_t = 0.0
@@ -143,6 +158,18 @@ class GestureController:
                 frame = cv2.flip(frame, 1)  # mirror, so hand-left = cursor-left
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 result = hands.process(rgb)
+
+                if result.multi_hand_landmarks:
+                    for hand_landmarks in result.multi_hand_landmarks:
+                        drawing.draw_landmarks(
+                            frame,
+                            hand_landmarks,
+                            mp.solutions.hands.HAND_CONNECTIONS,
+                            drawing_styles.get_default_hand_landmarks_style(),
+                            drawing_styles.get_default_hand_connections_style(),
+                        )
+                cv2.imshow(overlay_window, frame)
+                cv2.waitKey(1)
 
                 if not result.multi_hand_landmarks:
                     was_pinching = False
@@ -201,6 +228,8 @@ class GestureController:
         finally:
             cap.release()
             hands.close()
+            cv2.destroyWindow(overlay_window)
+            cv2.waitKey(1)
             if was_pinching:
                 pyautogui.mouseUp()
             log.info("gesture control loop stopped")

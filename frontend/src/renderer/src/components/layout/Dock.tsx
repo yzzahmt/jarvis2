@@ -5,11 +5,18 @@ interface Props {
   onPushToTalkStart: () => void
   onPushToTalkStop: () => void
   onTextSend: (text: string) => void
+  onGestureToggle: () => void
 }
 
-export function Dock({ onPushToTalkStart, onPushToTalkStop, onTextSend }: Props): JSX.Element {
+export function Dock({
+  onPushToTalkStart,
+  onPushToTalkStop,
+  onTextSend,
+  onGestureToggle
+}: Props): JSX.Element {
   const settings = useJarvisStore((s) => s.settings)
   const state = useJarvisStore((s) => s.state)
+  const gestureActive = useJarvisStore((s) => s.gestureActive)
   const isListening = state === 'listening'
 
   return (
@@ -20,6 +27,13 @@ export function Dock({ onPushToTalkStart, onPushToTalkStop, onTextSend }: Props)
         disabled={state === 'thinking' || state === 'speaking'}
       >
         {isListening ? 'Dinliyor... (durdurmak için tıkla)' : 'Konuşmak için tıkla'}
+      </button>
+      <button
+        className={`gesture-button ${gestureActive ? 'active' : ''}`}
+        onClick={onGestureToggle}
+        title="El hareketiyle fare kontrolü"
+      >
+        🖐 {gestureActive ? 'El kontrolü açık' : 'El kontrolü'}
       </button>
       <TextInputBar onSend={onTextSend} />
     </div>

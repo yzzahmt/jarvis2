@@ -161,6 +161,15 @@ class Orchestrator:
         sd.stop()
         event_bus.set_state_threadsafe(AppState.IDLE)
 
+    def toggle_gesture_control(self) -> bool:
+        from jarvis.vision.gesture_control import controller
+
+        if controller.is_running:
+            controller.stop()
+            return False
+        controller.start()
+        return True
+
     def get_settings(self) -> dict:
         return self.cfg.model_dump()
 
@@ -220,6 +229,13 @@ async def _on_interrupt(_type: str, _payload: dict) -> None:
     orchestrator.interrupt()
 
 
+async def _on_gesture_toggle(_type: str, _payload: dict) -> None:
+    import asyncio
+
+    active = await asyncio.to_thread(orchestrator.toggle_gesture_control)
+    await manager.broadcast("gesture_state", {"active": active})
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     global orchestrator
@@ -232,6 +248,7 @@ async def lifespan(_app: FastAPI):
     manager.register_handler("settings_get", _on_settings_get)
     manager.register_handler("settings_set", _on_settings_set)
     manager.register_handler("interrupt", _on_interrupt)
+    manager.register_handler("gesture_toggle", _on_gesture_toggle)
 
     audio_capture.start()
     log.info("Jarvis backend ready")
