@@ -1,8 +1,30 @@
 # JARVIS — İlerleme
 
-## Durum
-- **Tamamlanan:** Aşama 1 (ortam incelemesi + plan) — 2026-10-17
-- **Sıradaki tek adım:** Aşama 2'yi kullanıcı onayıyla başlatmak (önce HDD'de venv + veri klasörleri).
+## Durum (2026-10-17)
+- **Tamamlanan:** Aşama 1, 2, 5, 6 (Mac tarafı), 7 (kod + çevrimdışı ses testi), 8 (Claude yerine Gemini CLI/Aider adaptörü).
+- **Bekleyen (kullanıcı eylemi gerekli):** Aşama 3–4 — Linux makinelerinde `setup.sh` çalıştırmak; gerçek mikrofonla ses denemesi.
+- **Sıradaki tek adım:** Kullanıcı `setup.sh` çıktısındaki `<rol> <ip> <kullanıcı>` satırlarını iletince `config/machines.yaml` doldur, `python -m jarvis status` ile bağlantıyı test et, Mint'te YouTube ve CachyOS'ta test çalıştırmayı doğrula.
+
+## Testler
+| Test | Durum |
+|---|---|
+| pytest (27 test: yönlendirme, görev durumları, tekrar engeli, bütçe/sonsuz döngü, onay, çevrimdışı, hafıza, gizli bilgi, yeniden başlatma, alkış) | ✅ |
+| Yerel model Türkçe niyet ayrıştırma (qwen3:4b) | ✅ 1,3–4 sn/komut |
+| STT Türkçe (whisper small) | ✅ yükleme 14 sn (bir kez), çeviri 1–2 sn |
+| TTS Türkçe (Piper dfki) | ✅ hoparlörden çalındı |
+| Uyandırma "hey jarvis" (sentetik ses) / gürültüde yanlış uyanma | ✅ / ✅ yok |
+| YouTube araması (Mac, Playwright) | ✅ |
+| Metin modu uçtan uca (gerçek model + tarayıcı) | ✅ |
+| Gerçek mikrofonla sesli döngü | ⏳ kullanıcı denemesi gerekli (mikrofon izni) |
+| CachyOS / Mint SSH | ⏳ setup.sh bekleniyor |
+| Gemini CLI bayrakları (`-p`) | ⏳ CachyOS'ta `--help` ile doğrulanacak |
+| Çift alkış gerçek mikrofonda | ⏳ (varsayılan kapalı) |
+
+## Bilinen sorunlar
+- Türkçe uyandırma kelimesi yok; "hey jarvis" (İngilizce model) kullanılıyor.
+- Piper'da tek Türkçe ses var (dfki, erkek); beğenilmezse `voice.tts: say` (Yelda).
+- Antigravity (Mac'te kurulu) CLI ile otomasyona uygun değil → adaptör ertelendi (Aşama 9).
+- `data/serve/` geçici kurulum dosyaları; kurulum bitince silinebilir.
 
 ## Aşama 1 — Ortam (MacBook, ölçüldü)
 | Öğe | Değer |
@@ -56,16 +78,3 @@ Jarvis/data/logs/
 4. Türkçe uyandırma kelimesi hazır değil → "hey jarvis" (İngilizce model) kullanılacak; özel Türkçe model sonra.
 5. Uzak Giriş/SSH için Mac'te değil, Linux makinelerinde sshd gerekiyor (Aşama 3–4).
 
-## Aşama 2 planı (onay bekliyor)
-1. `python3.11 -m venv Jarvis/.venv`, `data/` klasörleri, `.gitignore`, `git init`.
-2. Paketler (venv'e, ~100 MB): fastapi, uvicorn, httpx, pyyaml, pytest.
-3. Ollama'yı `OLLAMA_MODELS=data/ollama` ile başlat, 1–2 küçük model indir (~2–3 GB/adet, HDD'ye).
-4. `memory/` (SQLite), `controller/task_manager.py`, `budget.py`, `router.py` (kural tabanlı komutlar), `models/ollama_client.py`.
-5. Testler: SQLite kayıt, görev durumları, tekrar engeli, basit komut Claude'suz, model yanıtı.
-
-## Testler
-Henüz test yok (Aşama 1 yalnızca inceleme).
-
-## Bilinen sorunlar
-- `--max-turns` doğrulanmadı.
-- Diğer iki bilgisayarın IP/sürüm bilgisi henüz alınmadı (Aşama 3–4).
