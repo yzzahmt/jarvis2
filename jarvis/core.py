@@ -3,6 +3,7 @@ import datetime as dt
 import json
 import re
 import threading
+from collections import deque
 from dataclasses import asdict
 
 from . import config
@@ -14,7 +15,8 @@ from .controller.budget import Budget, BudgetExceeded
 from .controller.permissions import Permissions
 from .controller.router import Intent, route, route_llm
 from .controller.task_manager import CONFIRM, DONE, FAILED, PENDING, RUNNING, TaskManager
-from .llm import LLMError, Ollama, OpenAICompat
+from .brains import Brains
+from .llm import LLMError, Ollama
 from .memory.db import DB
 from .text import norm
 
@@ -37,6 +39,7 @@ TEST_CMD = ("set -o pipefail; if [ -f pyproject.toml ] || [ -f pytest.ini ] || [
 
 class Jarvis:
     def __init__(self, settings=None, machines=None, db_path=None, llm=None, agents=None):
+        config.load_env()
         self.s = settings or config.load("settings")
         self.machines = machines if machines is not None else config.load("machines")
         self.db = DB(db_path or config.path(self.s.get("db_path", "data/jarvis.db")))
@@ -45,6 +48,8 @@ class Jarvis:
         self.llm = llm or Ollama(self.s.get("llm", {}))
         self.agents = agents if agents is not None else build_agents(self.machines)
         self.coder = Coder(self.s.get("coder", {}))
+        self.brains = Brains(self.s["brains"], self.db) if self.s.get("brains") else None
+        self.history: deque = deque(maxlen=8)   # sohbet bağlamı (son 4 soru-cevap)
         self.agent_cfg = self.s.get("agent", {})
         self.skills = Skills(self.db, config.path(self.agent_cfg.get("macros", "config/macros.yaml")))
         self.web = None                    # görünür tarayıcı oturumu (ilk kullanımda açılır)
@@ -171,6 +176,9 @@ class Jarvis:
 
     def do_status(self, i):
         parts = ["yerel model " + ("hazır" if self.llm.up() else "kapalı")]
+        if self.brains:
+            ok = [b.name for b in self.brains.ready() if b.is_cloud]
+            parts.append("bulut beyinleri " + (", ".join(ok) if ok else "ayarlı değil"))
         for n, a in self.agents.items():
             st = "ayarlanmadı" if not a.configured else ("çevrimiçi" if a.online() else "çevrimdışı")
             parts.append(f"{NAMES.get(n, n)} {st}")
@@ -200,14 +208,23 @@ class Jarvis:
             return "Henüz görev yok."
         return " ".join(f"{t['request'][:40]} — {t['status']}." for t in ts)
 
+    CHAT_SYSTEM = ("Sen JARVIS'sin: çok zeki, esprili ama saygılı, Türkçe konuşan kişisel asistan. Cevapların sesli okunur: "
+                   "markdown, liste, emoji kullanma; 1-3 kısa cümle yaz, kullanıcı ayrıntı isterse uzat. "
+                   "Emin olmadığın güncel bilgiyi uydurma, bilmediğini söyle. Bugün: {date}.")
+
     def do_chat(self, i):
-        if i.args.get("reply"):
+        text = i.args.get("text", "")
+        llm = self._agent_llm()
+        if llm is self.llm and i.args.get("reply"):      # bulut yoksa yönlendiricinin hazır cevabı yeter
             return i.args["reply"]
+        msgs = [{"role": "system", "content": self.CHAT_SYSTEM.format(date=f"{dt.date.today():%d.%m.%Y}")},
+                *self.history, {"role": "user", "content": text}]
         try:
-            return self.llm.chat([{"role": "system", "content": "Sen JARVIS'sin. Türkçe, en fazla iki kısa cümleyle yanıt ver."},
-                                  {"role": "user", "content": i.args.get("text", "")}], max_tokens=120)
+            reply = llm.chat(msgs, max_tokens=400)
         except LLMError:
-            return "Yerel model şu an yanıt vermiyor."
+            return i.args.get("reply") or "Şu an hiçbir yapay zekâ yanıt vermiyor."
+        self.history.extend([{"role": "user", "content": text}, {"role": "assistant", "content": reply}])
+        return reply
 
     # ---------------- görevler ----------------
     def _agent(self, i):
@@ -338,12 +355,9 @@ class Jarvis:
                               ask=self.ask, progress=progress, stop=self.tm.stop_flags.get(tid))
 
     def _agent_llm(self):
-        """Bulut beyni yalnızca ayarlıysa ve bütçe izin veriyorsa; yoksa yerel model."""
-        c = self.s.get("cloud_brain") or {}
-        if c and self.s.get("budget", {}).get("max_cloud_calls_per_task", 0) > 0:
-            cloud = OpenAICompat(c)
-            if cloud.available():
-                return cloud
+        """Çoklu beyin (ücretsiz bulut sırası + yerel yedek); bulut bütçesi 0 ise yalnızca yerel model."""
+        if self.brains and self.s.get("budget", {}).get("max_cloud_calls_per_task", 0) > 0 and self.brains.ready():
+            return self.brains
         return self.llm
 
     def do_agent(self, i, tid, budget, say):
@@ -355,8 +369,9 @@ class Jarvis:
         llm = self._agent_llm()
         self.tm.update(tid, model=getattr(llm, "agent_model", None) or getattr(llm, "model", "?"))
         use_skills = self.agent_cfg.get("skills", True)
-        answer, steps = agent_loop.run(task, self._ctx(tid, budget), llm, budget,
+        answer, steps = agent_loop.run(task, self._ctx(tid, budget), llm, budget, history=list(self.history)[-4:],
                                        hint=self.skills.hint(task) if use_skills else "")
+        self.history.extend([{"role": "user", "content": task}, {"role": "assistant", "content": answer}])
         self.tm.update(tid, tools=json.dumps([s["tool"] for s in steps]))
         if use_skills and not self.tm.stopped(tid):
             self.skills.save(task, steps, answer)

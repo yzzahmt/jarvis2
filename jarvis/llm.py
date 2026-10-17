@@ -22,7 +22,12 @@ class Reply:
 
 
 class LLMError(Exception):
-    pass
+    def __init__(self, msg, status=None, retry_after=None):
+        super().__init__(msg)
+        self.status, self.retry_after = status, retry_after
+
+
+THINK = re.compile(r"<think>.*?</think>", re.S)
 
 
 class Ollama:
@@ -116,37 +121,60 @@ class Ollama:
 
 
 class OpenAICompat:
-    """Ücretsiz bulut beyni (ör. Gemini API ücretsiz katmanı; OpenAI uyumlu uç). Claude DEĞİL."""
-    is_cloud = True
+    """OpenAI uyumlu uç: Gemini, Groq, OpenRouter, Cerebras ücretsiz katmanları veya yerel Ollama (/v1). Claude DEĞİL."""
 
     def __init__(self, cfg: dict):
+        self.name = cfg.get("name") or cfg.get("model")
         self.base = (cfg.get("base_url") or "").rstrip("/")
         self.model = cfg.get("model")
-        self.key = os.environ.get(cfg.get("api_key_env", "GEMINI_API_KEY"), "")
+        env = cfg.get("api_key_env")
+        self.key = os.environ.get(env, "") if env else "yerel"
+        self.is_cloud = not self.base.startswith(("http://127.0.0.1", "http://localhost"))
         self.timeout = cfg.get("timeout_s", 60)
-        self.last_model = self.model
+        self.extra = cfg.get("extra") or {}
+        self.last_model, self.last_tokens = self.model, None
 
     def available(self) -> bool:
         return bool(self.base and self.model and self.key)
 
-    def chat_tools(self, messages, tools, model=None, max_tokens=1200) -> Reply:
+    def _post(self, body):
         try:
             r = httpx.post(self.base + "/chat/completions", headers={"Authorization": f"Bearer {self.key}"},
-                           json={"model": model or self.model, "messages": messages, "tools": tools,
-                                 "max_tokens": max_tokens, "temperature": 0.1}, timeout=self.timeout)
-            r.raise_for_status()
+                           json={"model": self.model, **self.extra, **body}, timeout=self.timeout)
         except httpx.HTTPError as e:
-            raise LLMError(f"Bulut beyni hatası: {e}")
+            raise LLMError(f"{self.name} bağlantı hatası: {e}")
+        if r.status_code >= 400:
+            ra = r.headers.get("retry-after")
+            raise LLMError(f"{self.name} {r.status_code}: {r.text[:120]}", r.status_code,
+                           int(float(ra)) if ra and ra.replace(".", "").isdigit() else None)
         d = r.json()
-        m = d["choices"][0]["message"]
-        calls = [ToolCall(c["function"]["name"], json.loads(c["function"].get("arguments") or "{}"), c.get("id", ""))
-                 for c in m.get("tool_calls") or []]
-        return Reply(m.get("content") or "", calls, (d.get("usage") or {}).get("total_tokens"))
+        self.last_tokens = (d.get("usage") or {}).get("total_tokens")
+        try:
+            return d["choices"][0]["message"]
+        except (KeyError, IndexError):
+            raise LLMError(f"{self.name}: boş yanıt", 500)
+
+    def chat(self, messages, max_tokens=400) -> str:
+        m = self._post({"messages": messages, "max_tokens": max_tokens, "temperature": 0.4})
+        return THINK.sub("", m.get("content") or "").strip()
+
+    def chat_tools(self, messages, tools, model=None, max_tokens=1200) -> Reply:
+        m = self._post({"messages": messages, "tools": tools, "max_tokens": max_tokens, "temperature": 0.1})
+        calls = []
+        for c in m.get("tool_calls") or []:
+            a = c["function"].get("arguments") or "{}"
+            try:
+                args = json.loads(a) if isinstance(a, str) else a
+            except ValueError:
+                args = {}
+            calls.append(ToolCall(c["function"]["name"], args, c.get("id", "")))
+        return Reply(THINK.sub("", m.get("content") or "").strip(), calls, self.last_tokens)
 
     def assistant_msg(self, rep: Reply) -> dict:
-        return {"role": "assistant", "content": rep.content or None,
-                "tool_calls": [{"id": c.id, "type": "function",
-                                "function": {"name": c.name, "arguments": json.dumps(c.args)}} for c in rep.calls]}
+        return {"role": "assistant", "content": rep.content or "",
+                "tool_calls": [{"id": c.id or f"c{i}", "type": "function",
+                                "function": {"name": c.name, "arguments": json.dumps(c.args, ensure_ascii=False)}}
+                               for i, c in enumerate(rep.calls)]}
 
     def tool_msg(self, call: ToolCall, content: str) -> dict:
-        return {"role": "tool", "tool_call_id": call.id, "content": content}
+        return {"role": "tool", "tool_call_id": call.id or "c0", "name": call.name, "content": content}

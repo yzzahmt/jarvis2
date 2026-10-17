@@ -168,3 +168,24 @@ def test_core_agent_budget_stops(make):
     j.agent_cfg = {"max_turns": 4}
     assert j.handle("bir şeyler yap").startswith("Durdum")
     assert j.tm.list(1)[0]["status"] == FAILED
+
+
+def test_brains_failover_and_cooldown(monkeypatch):
+    from jarvis import brains as B
+    from jarvis.llm import LLMError
+    calls = []
+
+    def fake(self, body):
+        calls.append(self.name)
+        if self.name == "a":
+            raise LLMError("kota", 429)
+        return {"content": "<think>x</think>Merhaba"}
+
+    monkeypatch.setattr(B.OpenAICompat, "_post", fake)
+    monkeypatch.setenv("K", "1")
+    br = B.Brains([{"name": "a", "base_url": "https://a", "model": "m", "api_key_env": "K"},
+                   {"name": "b", "base_url": "https://b", "model": "m", "api_key_env": "YOK"},   # anahtar yok: atlanır
+                   {"name": "yerel", "base_url": "http://127.0.0.1:11434/v1", "model": "q"}])
+    assert br.chat([{"role": "user", "content": "selam"}]) == "Merhaba" and calls == ["a", "yerel"]
+    assert br.chat([]) == "Merhaba" and calls[-1] == "yerel" and calls.count("a") == 1   # a soğumada
+    assert [s["wait_s"] > 0 for s in br.status()] == [True, False, False]

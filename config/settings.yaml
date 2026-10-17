@@ -16,7 +16,7 @@ budget:
   max_auto_fixes: 2          # aynı hata için
   max_task_seconds: 900
   max_context_chars: 20000
-  max_cloud_calls_per_task: 0   # 0 = bulut tamamen kapalı (Claude kullanılmaz)
+  max_cloud_calls_per_task: 40  # yalnızca ücretsiz katmanlar (Claude kullanılmaz); 0 = bulut kapalı
   subagents: false
   dedupe_hours: 24
 
@@ -46,3 +46,16 @@ agent:                    # genel ajan (sabit komutlara uymayan istekler)
   max_task_seconds: 900
   skills: true            # başarılı görevlerin adımlarını beceri olarak sakla
   macros: config/macros.yaml
+
+# Çoklu beyin: sırayla denenir; kota (429) veya hata alan soğumaya alınır, sıradakine geçilir.
+# Anahtarlar Jarvis/.env içinde (git dışı). Anahtarı olmayan atlanır. Son sıradaki yerel model hep çalışır.
+# Model adları değişebilir: sağlayıcının /models listesinden güncelle.
+brains:
+  - {name: gemini, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-2.5-flash, api_key_env: GEMINI_API_KEY}
+  - {name: groq, base_url: "https://api.groq.com/openai/v1", model: llama-3.3-70b-versatile, api_key_env: GROQ_API_KEY}
+  - {name: cerebras, base_url: "https://api.cerebras.ai/v1", model: llama-3.3-70b, api_key_env: CEREBRAS_API_KEY}
+  - {name: openrouter, base_url: "https://openrouter.ai/api/v1", model: "deepseek/deepseek-chat-v3-0324:free", api_key_env: OPENROUTER_API_KEY}
+  - {name: yerel, base_url: "http://127.0.0.1:11434/v1", model: qwen3:8b, timeout_s: 180, extra: {reasoning_effort: none}}
+
+ui:
+  speak: true             # yanıtları sesli oku (mikrofon olmasa da)

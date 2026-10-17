@@ -123,8 +123,8 @@ class App:
         self.bars.step(self.task_machine, "Onay bekleniyor: " + question[:60], self.task_title)
         if listen is not None:
             threading.Thread(target=lambda: self._voice_answer(qid, listen, question), daemon=True).start()
-        elif self.voice and self.speak:
-            threading.Thread(target=self.voice.say, args=(question,), daemon=True).start()
+        else:
+            threading.Thread(target=self.say, args=(question,), daemon=True).start()
         ev.wait(timeout=180)
         self.pending_ask = None
         self.push("ask_done", id=qid)
@@ -188,9 +188,26 @@ class App:
         self.state("thinking")
         reply = self.j.handle(text, say=lambda m: self.message("jarvis-interim", m), ask=self.ask)
         self.message("jarvis", reply)
-        if self.voice and self.speak:
-            self.voice.say(reply)
+        self.say(reply)
         self.state("idle" if self.j.awake or not self.voice else "sleep")
+
+    def say(self, text):
+        """Sesli cevap: mikrofon yoksa da konuşur (yankı engeli için varsa ses döngüsünün say'i)."""
+        if not self.speak or not text:
+            return
+        if self.voice:
+            return self.voice.say(text)
+        try:
+            if not hasattr(self, "tts"):
+                from ..voice.text_to_speech import TTS
+                v = self.s.get("voice", {})
+                self.tts = TTS(v.get("tts", "piper"), config.path(f"data/tts/{v.get('piper_voice')}.onnx"),
+                               v.get("say_voice", "Yelda"), config.path("data/tmp"))
+            self.state("speaking")
+            self.tts.speak(text)
+        except Exception:
+            pass
+        self.state("idle")
 
     def mic(self):
         if not self.voice:
