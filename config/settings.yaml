@@ -1,0 +1,37 @@
+db_path: data/jarvis.db
+api: {host: 127.0.0.1, port: 8765}   # yalnızca yerel; internete açılmaz
+
+llm:
+  url: http://127.0.0.1:11434
+  model: qwen3:4b
+  fallback_models: [gemma3:4b]
+  timeout_s: 90
+
+budget:
+  max_agent_turns: 10
+  max_auto_fixes: 2          # aynı hata için
+  max_task_seconds: 900
+  max_context_chars: 20000
+  max_cloud_calls_per_task: 0   # 0 = bulut tamamen kapalı (Claude kullanılmaz)
+  subagents: false
+  dedupe_hours: 24
+
+permissions:
+  confirm: [delete, install, system, account, external, shell]
+  allowed_dirs: ["~/projeler", "/Volumes/HDD/projeler"]
+  allowed_apps: [Safari, Terminal, Finder, "Google Chrome", Antigravity, Notes, Music]
+
+voice:
+  wake_word: hey_jarvis
+  wake_threshold: 0.5
+  clap_enabled: false
+  hotkey: "<cmd>+<shift>+j"
+  idle_sleep_s: 60
+  stt_model: small
+  tts: piper              # piper | say
+  piper_voice: tr_TR-fahrettin-medium
+  say_voice: Yelda
+
+coder:                    # kodlama ajanı sırası (Claude yok)
+  order: [gemini, aider]
+  timeout_s: 900

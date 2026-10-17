@@ -1,0 +1,19 @@
+# host/user Aşama 3-4'te doldurulacak. Özel anahtarlar ~/.ssh içinde kalır.
+mac:
+  role: controller
+  local: true
+cachyos:
+  role: technical
+  aliases: [cachy, cachyos, kaşi, teknik]
+  host: null
+  user: null
+  port: 22
+  key: ~/.ssh/jarvis_ed25519
+  project_dir: ~/projeler
+mint:
+  role: automation
+  aliases: [mint, linux mint, otomasyon]
+  host: null
+  user: null
+  port: 22
+  key: ~/.ssh/jarvis_ed25519

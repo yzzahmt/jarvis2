@@ -1,0 +1,13 @@
+[project]
+name = "jarvis"
+version = "0.1.0"
+requires-python = ">=3.11,<3.13"
+dependencies = ["fastapi", "uvicorn", "httpx", "pyyaml"]
+
+[project.optional-dependencies]
+voice = ["numpy", "sounddevice", "faster-whisper", "openwakeword", "piper-tts", "pynput"]
+browser = ["playwright"]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
