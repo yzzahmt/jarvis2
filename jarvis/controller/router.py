@@ -69,7 +69,7 @@ def route(text: str, machines: dict) -> Intent | None:
     if mm:
         g = mm.group(1)
         return Intent("pick_result", {"index": int(g) if g.isdigit() else ORD[g]}, machine=m("mint"))
-    if "youtube" in t:
+    if "youtube" in t or re.search(r"\b(şarkı|müzi[kğ]|video|klip)\S*\b.*\b(aç|çal|dinle|izle|oynat)", t):
         q = _strip_machine(t, machines)
         q = re.sub(r"youtube\S*\s*(aç)?\s*(ve)?", " ", q)
         q = re.sub(r"\b(videosunu|videoyu|videolarını|video)\b|\b(ara|bul|aç|göster|oynat)\b", " ", q)
@@ -95,7 +95,11 @@ LLM_SYSTEM = (
     '{"intent": <' + "|".join(INTENTS) + '>, "args": {...}, "machine": "mac|cachyos|mint", '
     '"reply": "<sadece intent chat ise kısa Türkçe yanıt>"}. '
     "args: youtube->{query}, open_app->{app}, open_url->{url}, run_tests->{project}, code->{task}. "
-    "cachyos: kodlama/test makinesi, mint: tarayıcı/YouTube makinesi, varsayılan mac. Sadece JSON yaz.")
+    "cachyos: kodlama/test makinesi, mint: tarayıcı/YouTube makinesi, varsayılan mac. "
+    "Şarkı/müzik/video çalma veya izleme her zaman youtube'dur. open_app yalnızca uygulama adı içindir. Örnekler: "
+    '"tarkanın son şarkısını çal" -> {"intent":"youtube","args":{"query":"tarkan son şarkı"},"machine":"mint"}; '
+    '"oyunumdaki hatayı düzelt" -> {"intent":"code","args":{"task":"oyundaki hatayı düzelt"},"machine":"cachyos"}; '
+    '"nasılsın" -> {"intent":"chat","args":{},"machine":"mac","reply":"İyiyim, teşekkürler."}. Sadece JSON yaz.')
 
 
 def route_llm(text: str, llm) -> Intent:

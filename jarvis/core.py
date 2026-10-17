@@ -102,7 +102,9 @@ class Jarvis:
 
     def _run(self, tid, intent: Intent, say):
         b = Budget.from_cfg(self.s.get("budget", {}))
-        self.tm.start(tid, model=intent.source)
+        if intent.source == "yerel-model":   # yerel (ücretsiz) model tokenları; bulut değil
+            b.add_tokens(self.llm.last_tokens)
+        self.tm.start(tid, model=self.llm.last_model if intent.source == "yerel-model" else "kural")
         try:
             msg = getattr(self, "do_" + intent.name)(intent, tid=tid, budget=b, say=say)
             if self.tm.stopped(tid):
@@ -141,7 +143,8 @@ class Jarvis:
         for n, a in self.agents.items():
             st = "ayarlanmadı" if not a.configured else ("çevrimiçi" if a.online() else "çevrimdışı")
             parts.append(f"{NAMES.get(n, n)} {st}")
-        return ", ".join(parts).capitalize() + "."
+        out = ", ".join(parts)
+        return out[0].upper() + out[1:] + "."
 
     def do_stop(self, i):
         running = self.tm.list(50, RUNNING) + self.tm.list(50, CONFIRM)

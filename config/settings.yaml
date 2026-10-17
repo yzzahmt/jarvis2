@@ -5,7 +5,7 @@ llm:
   url: http://127.0.0.1:11434
   model: qwen3:4b
   fallback_models: [gemma3:4b]
-  timeout_s: 90
+  timeout_s: 180   # ilk yükleme HDD'den yavaş olabilir
 
 budget:
   max_agent_turns: 10
@@ -19,7 +19,8 @@ budget:
 permissions:
   confirm: [delete, install, system, account, external, shell]
   allowed_dirs: ["~/projeler", "/Volumes/HDD/projeler"]
-  allowed_apps: [Safari, Terminal, Finder, "Google Chrome", Antigravity, Notes, Music]
+  allowed_apps: [Safari, Terminal, Finder, "Google Chrome", Antigravity, Notes, Music, Calendar]
+  app_aliases: {notlar: Notes, müzik: Music, tarayıcı: Safari, takvim: Calendar, chrome: "Google Chrome", terminali: Terminal}
 
 voice:
   wake_word: hey_jarvis
@@ -29,9 +30,9 @@ voice:
   idle_sleep_s: 60
   stt_model: small
   tts: piper              # piper | say
-  piper_voice: tr_TR-fahrettin-medium
+  piper_voice: tr_TR-dfki-medium
   say_voice: Yelda
 
 coder:                    # kodlama ajanı sırası (Claude yok)
   order: [gemini, aider]
-  timeout_s: 900
+  timeout_s: 180   # ilk yükleme HDD'den yavaş olabilir0

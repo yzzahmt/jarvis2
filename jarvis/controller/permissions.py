@@ -16,6 +16,9 @@ class Permissions:
         self.confirm = set(cfg.get("confirm", []))
         self.dirs = [Path(os.path.expanduser(d)).resolve() for d in cfg.get("allowed_dirs", [])]
         self.apps = {a.lower(): a for a in cfg.get("allowed_apps", [])}
+        for tr, app in (cfg.get("app_aliases") or {}).items():
+            if app.lower() in self.apps:
+                self.apps[tr.lower()] = app
 
     def sensitive(self, text: str) -> list[str]:
         t = text.lower()

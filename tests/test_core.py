@@ -133,3 +133,11 @@ def test_restart_recovers(make, tmp_path):
 
 def test_qpath():
     assert qpath("~/a b") == "\"$HOME\"/'a b'"
+
+
+def test_music_goes_to_youtube_and_aliases():
+    from jarvis.controller.permissions import Permissions
+    i = route("biraz caz müziği açsana", MACHINES)
+    assert i.name == "youtube" and "caz" in i.args["query"]
+    p = Permissions({"allowed_apps": ["Notes"], "app_aliases": {"notlar": "Notes"}})
+    assert p.app("notlar") == "Notes" and p.app("steam") is None

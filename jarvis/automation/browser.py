@@ -22,6 +22,24 @@ def open_url(url: str) -> dict:
     return {"ok": True, "url": url}
 
 
+def _walk(o, out):
+    """ytInitialData içinden video kimliği + başlık topla (eski ve yeni YouTube düzeni)."""
+    if isinstance(o, dict):
+        vr = o.get("videoRenderer")
+        if isinstance(vr, dict) and vr.get("videoId"):
+            runs = (vr.get("title") or {}).get("runs") or [{}]
+            out.append((vr["videoId"], runs[0].get("text", "")))
+        lv = o.get("lockupViewModel")
+        if isinstance(lv, dict) and lv.get("contentType", "").endswith("VIDEO") and lv.get("contentId"):
+            t = (((lv.get("metadata") or {}).get("lockupMetadataViewModel") or {}).get("title") or {}).get("content", "")
+            out.append((lv["contentId"], t))
+        for v in o.values():
+            _walk(v, out)
+    elif isinstance(o, list):
+        for v in o:
+            _walk(v, out)
+
+
 def youtube_search(query: str, n: int = 5) -> dict:
     from playwright.sync_api import sync_playwright
 
@@ -30,16 +48,22 @@ def youtube_search(query: str, n: int = 5) -> dict:
         b = p.chromium.launch(headless=True)
         pg = b.new_page(locale="tr-TR")
         pg.goto(url, wait_until="domcontentloaded", timeout=30000)
-        try:  # çerez onay sayfası çıkarsa
-            pg.click("button:has-text('Tümünü reddet'), button:has-text('Reject all')", timeout=3000)
-        except Exception:
-            pass
-        pg.wait_for_selector("ytd-video-renderer a#video-title", timeout=20000)
-        items = pg.eval_on_selector_all(
-            "ytd-video-renderer a#video-title",
-            f"els => els.slice(0,{n}).map(e => ({{title: (e.title || e.textContent).trim(), url: e.href}}))")
+        if "consent." in pg.url:  # çerez onay sayfası: reddet
+            try:
+                pg.click("button:has-text('Tümünü reddet'), button:has-text('Reject all')", timeout=5000)
+                pg.wait_for_load_state("domcontentloaded")
+            except Exception:
+                pass
+        data = pg.evaluate("() => window.ytInitialData || null")
         b.close()
-    return {"ok": bool(items), "results": items, "search_url": url}
+    found, seen, items = [], set(), []
+    _walk(data or {}, found)
+    for vid, title in found:
+        if vid not in seen and title:
+            seen.add(vid)
+            items.append({"title": title, "url": f"https://www.youtube.com/watch?v={vid}"})
+    return {"ok": bool(items), "results": items[:n], "search_url": url,
+            **({} if items else {"error": "sonuç bulunamadı"})}
 
 
 def main(argv):

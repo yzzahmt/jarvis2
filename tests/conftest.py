@@ -33,6 +33,7 @@ class FakeAgent:
 
 class FakeLLM:
     def __init__(self, reply=None):
+        self.last_tokens, self.last_model = 10, "fake"
         self.reply, self.calls = reply or {"intent": "chat", "reply": "Merhaba!"}, 0
 
     def up(self):
