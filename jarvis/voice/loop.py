@@ -88,7 +88,7 @@ class VoiceLoop:
             self._hotkeys(v)
         status("Konuşma tanıma modeli yükleniyor...")
         from .speech_to_text import STT
-        self.stt = STT(v.get("stt_model", "small"), str(config.path("data/hf")))
+        self.stt = STT(v.get("stt_model", "small"), str(config.path("data/hf")), v.get("words") or [])
         threading.Thread(target=self._warm_llm, daemon=True).start()
 
     def _warm_llm(self):

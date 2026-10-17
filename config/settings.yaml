@@ -33,6 +33,7 @@ voice:
   hotkey: "<cmd>+<shift>+j"
   idle_sleep_s: 60
   stt_model: large-v3-turbo   # small Türkçede zayıftı
+  words: [Vivaldi, OBİS]      # sık söylediğin özel adlar (okul, site, uygulama); ses tanıma bunları öncelikli duyar
   tts: piper              # piper | say
   piper_voice: tr_TR-dfki-medium
   say_voice: Yelda
