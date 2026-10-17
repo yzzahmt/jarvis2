@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS</title>
+<style>
+:root {
+  --glass: rgba(246, 246, 248, 0.72);
+  --card: rgba(255, 255, 255, 0.62);
+  --line: rgba(0, 0, 0, 0.08);
+  --text: #1d1d1f;
+  --dim: #6e6e73;
+  --faint: #a1a1a6;
+  --accent: #0a84ff;
+  --ok: #30d158;
+  --bad: #ff453a;
+  --warn: #ff9f0a;
+  --field: rgba(0, 0, 0, 0.05);
+  --shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass: rgba(28, 28, 30, 0.66);
+    --card: rgba(58, 58, 60, 0.45);
+    --line: rgba(255, 255, 255, 0.08);
+    --text: #f5f5f7;
+    --dim: #a1a1a6;
+    --faint: #6e6e73;
+    --field: rgba(255, 255, 255, 0.07);
+    --shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: transparent; overflow: hidden; }
+body {
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  color: var(--text); -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none;
+}
+.shell {
+  position: absolute; inset: 0; border-radius: 22px; overflow: hidden;
+  background: var(--glass); border: 0.5px solid var(--line);
+  display: flex; flex-direction: column;
+}
+
+/* başlık */
+header { height: 44px; display: flex; align-items: center; padding: 0 14px; gap: 8px; flex-shrink: 0; }
+.lights { display: flex; gap: 8px; }
+.lights button { width: 12px; height: 12px; border-radius: 50%; border: 0; cursor: default; opacity: .9; }
+.lights .c { background: #ff5f57; } .lights .m { background: #febc2e; }
+.lights:hover button { opacity: 1; }
+.brand { flex: 1; text-align: center; font-size: 12px; font-weight: 600; letter-spacing: .32em; color: var(--dim); margin-right: 40px; }
+.icon-btn { width: 28px; height: 28px; border-radius: 8px; border: 0; background: transparent; color: var(--dim);
+  display: grid; place-items: center; cursor: default; }
+.icon-btn:hover { background: var(--field); color: var(--text); }
+.icon-btn svg { width: 16px; height: 16px; }
+
+/* küre */
+.hero { display: flex; flex-direction: column; align-items: center; padding: 6px 0 12px; flex-shrink: 0; transition: padding .5s; }
+.orb { position: relative; width: 150px; height: 150px; transition: transform .6s cubic-bezier(.2,.8,.2,1), width .5s, height .5s; }
+.orb .b { position: absolute; inset: 8%; border-radius: 50%; filter: blur(14px); mix-blend-mode: normal; opacity: .9; }
+.orb .b1 { background: radial-gradient(circle at 30% 30%, #64d2ff, transparent 62%); animation: spin 9s linear infinite; }
+.orb .b2 { background: radial-gradient(circle at 70% 40%, #5e5ce6, transparent 60%); animation: spin 12s linear infinite reverse; }
+.orb .b3 { background: radial-gradient(circle at 45% 75%, #bf5af2, transparent 60%); animation: spin 15s linear infinite; }
+.orb .b4 { background: radial-gradient(circle at 60% 65%, #ff375f, transparent 55%); animation: spin 11s linear infinite reverse; opacity: .55; }
+.orb .core { position: absolute; inset: 22%; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, rgba(255,255,255,.95), rgba(255,255,255,.25) 45%, transparent 70%);
+  filter: blur(6px); opacity: .55; animation: breathe 4.5s ease-in-out infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes breathe { 0%,100% { transform: scale(.94); opacity: .45 } 50% { transform: scale(1.04); opacity: .7 } }
+@keyframes pulse { 0%,100% { transform: scale(1) } 50% { transform: scale(1.09) } }
+@keyframes talk { 0%,100% { transform: scale(1) } 25% { transform: scale(1.06) } 60% { transform: scale(.97) } }
+
+body[data-state="sleep"] .orb { transform: scale(.72); filter: saturate(.35); opacity: .7; }
+body[data-state="sleep"] .orb .b { animation-duration: 30s; }
+body[data-state="listening"] .orb { animation: pulse 1.6s ease-in-out infinite; }
+body[data-state="listening"] .orb .b { animation-duration: 5s; }
+body[data-state="thinking"] .orb .b { animation-duration: 1.8s; }
+body[data-state="thinking"] .orb .core { animation-duration: 1.2s; }
+body[data-state="speaking"] .orb { animation: talk .7s ease-in-out infinite; }
+body.compact .orb { width: 72px; height: 72px; }
+body.compact .hero { padding: 0 0 6px; }
+
+.status { margin-top: 10px; font-size: 13px; color: var(--dim); height: 18px; transition: opacity .3s; }
+.machines { display: flex; gap: 6px; margin-top: 12px; }
+.chip { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); padding: 4px 10px;
+  border-radius: 999px; background: var(--field); }
+.chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+.chip.on i { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.chip.down i { background: var(--bad); }
+.chip.active { color: var(--text); background: var(--card); box-shadow: 0 0 0 1px var(--accent) inset; }
+
+/* sohbet */
+.feed { flex: 1; overflow-y: auto; padding: 4px 18px 12px; display: flex; flex-direction: column; gap: 10px;
+  mask-image: linear-gradient(to bottom, transparent, #000 18px); scrollbar-width: none; }
+.feed::-webkit-scrollbar { display: none; }
+.empty { margin: auto; text-align: center; color: var(--faint); font-size: 13px; line-height: 1.7; }
+.empty b { color: var(--dim); font-weight: 500; }
+.m { max-width: 88%; animation: rise .35s cubic-bezier(.2,.8,.2,1); user-select: text; -webkit-user-select: text; }
+.m.user { align-self: flex-end; background: var(--accent); color: #fff; padding: 7px 12px; border-radius: 16px 16px 4px 16px; }
+.m.jarvis { align-self: flex-start; font-size: 15px; }
+.m.interim { align-self: flex-start; color: var(--dim); font-size: 13px; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+
+.task { align-self: stretch; background: var(--card); border-radius: 14px; padding: 10px 12px; animation: rise .35s; }
+.task .t { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--dim); }
+.task .t .sp { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent);
+  animation: spin .8s linear infinite; }
+.task.done .t .sp { animation: none; border-color: var(--ok); background: var(--ok); }
+.task.fail .t .sp { animation: none; border-color: var(--bad); background: var(--bad); }
+.task .steps { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.task .s { font-size: 12.5px; color: var(--dim); display: flex; gap: 7px; align-items: baseline; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.task .s::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--faint); flex-shrink: 0; transform: translateY(-2px); }
+.task .s.cur { color: var(--text); }
+.task .s.cur::before { background: var(--accent); }
+
+.ask { align-self: stretch; border-radius: 14px; padding: 12px; background: var(--card);
+  box-shadow: 0 0 0 1px var(--warn) inset; animation: rise .3s; }
+.ask p { font-size: 13.5px; margin-bottom: 10px; word-break: break-word; }
+.ask .row { display: flex; gap: 8px; }
+.ask button { flex: 1; height: 32px; border-radius: 9px; border: 0; font: inherit; font-weight: 600; cursor: default; }
+.ask .yes { background: var(--accent); color: #fff; }
+.ask .no { background: var(--field); color: var(--text); }
+.ask.closed { opacity: .45; box-shadow: none; }
+.ask.closed .row { display: none; }
+
+/* giriş */
+.composer { padding: 10px 14px 14px; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.field { flex: 1; display: flex; align-items: center; background: var(--field); border-radius: 999px; height: 40px; padding: 0 6px 0 16px; }
+.field input { flex: 1; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 14px; }
+.field input::placeholder { color: var(--faint); }
+.send { width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; display: grid; place-items: center;
+  opacity: 0; transform: scale(.6); transition: .2s; cursor: default; }
+.send.show { opacity: 1; transform: none; }
+.send svg { width: 14px; height: 14px; }
+.round { width: 40px; height: 40px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: default; transition: transform .15s; }
+.round:active { transform: scale(.92); }
+.round svg { width: 18px; height: 18px; }
+.mic { background: linear-gradient(135deg, #64d2ff, #5e5ce6 55%, #bf5af2); color: #fff; box-shadow: 0 4px 14px rgba(94,92,230,.35); }
+.mic.off { background: var(--field); color: var(--faint); box-shadow: none; }
+body[data-state="listening"] .mic { animation: pulse 1.2s ease-in-out infinite; }
+.stopb { background: var(--field); color: var(--bad); display: none; }
+body.busy .stopb { display: grid; }
+.hint { text-align: center; font-size: 11px; color: var(--faint); padding-bottom: 10px; margin-top: -6px; }
+</style>
+</head>
+<body data-state="idle">
+<div class="shell">
+  <header class="pywebview-drag-region">
+    <div class="lights">
+      <button class="c" title="Kapat" onclick="api('quit')"></button>
+      <button class="m" title="Küçült" onclick="api('minimize')"></button>
+    </div>
+    <div class="brand pywebview-drag-region">JARVIS</div>
+    <button class="icon-btn" id="spk" title="Yanıtları sesli oku" onclick="toggleSpeak()"></button>
+  </header>
+
+  <section class="hero pywebview-drag-region">
+    <div class="orb"><div class="b b1"></div><div class="b b2"></div><div class="b b3"></div><div class="b b4"></div><div class="core"></div></div>
+    <div class="status" id="status">Hazır</div>
+    <div class="machines" id="machines"></div>
+  </section>
+
+  <main class="feed" id="feed">
+    <div class="empty" id="empty">Bir şey söyle ya da yaz.<br><b>“İndirilenlerde kaç PDF var?”</b><br><b>“CachyOS'ta tarih projesinin testlerini çalıştır”</b><br><b>“Sesi 30 yap”</b></div>
+  </main>
+
+  <footer>
+    <div class="composer">
+      <div class="field">
+        <input id="inp" placeholder="JARVIS'e yaz…" autocomplete="off" spellcheck="false">
+        <button class="send" id="send" title="Gönder" onclick="send()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </button>
+      </div>
+      <button class="round stopb" title="Görevi durdur" onclick="api('stop')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>
+      </button>
+      <button class="round mic" id="mic" title="Dinle" onclick="mic()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+    </div>
+    <div class="hint" id="hint"></div>
+  </footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const feed = $("feed"), inp = $("inp");
+const STATUS = { idle: "Hazır", sleep: "Uykuda · “Hey Jarvis” de", listening: "Dinliyorum…", thinking: "Düşünüyorum…", speaking: "Konuşuyorum…" };
+const SPK_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const SPK_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6M21 9l-5 6"/></svg>';
+let speak = true, task = null, asks = {}, statusText = null;
+
+function api(name, ...a) { return window.pywebview && window.pywebview.api[name](...a); }
+function scroll() { feed.scrollTo({ top: feed.scrollHeight, behavior: "smooth" }); }
+function add(el) { $("empty")?.remove(); feed.appendChild(el); scroll(); document.body.classList.toggle("compact", feed.children.length > 3); return el; }
+function el(cls, text) { const d = document.createElement("div"); d.className = cls; if (text != null) d.textContent = text; return d; }
+function setState(s) { document.body.dataset.state = s; $("status").textContent = statusText && s === "thinking" ? statusText : (STATUS[s] || ""); }
+
+function machines(list) {
+  const box = $("machines"); box.innerHTML = "";
+  for (const m of list) {
+    const c = el("chip " + m.state); c.dataset.id = m.id;
+    c.title = { on: "Çevrimiçi", down: "Çevrimdışı", off: "Bağlantı ayarlanmadı" }[m.state];
+    c.append(document.createElement("i"), m.name); box.appendChild(c);
+  }
+  if (task) markActive(task.machine);
+}
+function markActive(id) { document.querySelectorAll(".chip").forEach(c => c.classList.toggle("active", c.dataset.id === id)); }
+
+window.jarvis = {
+  on(type, d) {
+    if (type === "state") setState(d.state);
+    else if (type === "msg") {
+      if (d.role === "user") add(el("m user", d.text));
+      else if (d.role === "jarvis-interim") add(el("m interim", d.text));
+      else add(el("m jarvis", d.text));
+    }
+    else if (type === "task_start") {
+      const t = add(el("task"));
+      const head = el("t"); head.append(el("sp"), d.title); t.append(head, el("steps"));
+      task = { el: t, machine: d.machine }; markActive(d.machine);
+      document.body.classList.add("busy"); statusText = d.title; setState("thinking");
+    }
+    else if (type === "step" && task) {
+      const steps = task.el.querySelector(".steps");
+      steps.querySelectorAll(".cur").forEach(s => s.classList.remove("cur"));
+      steps.appendChild(el("s cur", d.text)); statusText = d.text; setState("thinking"); scroll();
+    }
+    else if (type === "task_end" && task) {
+      task.el.classList.add(d.ok ? "done" : "fail");
+      task.el.querySelectorAll(".cur").forEach(s => s.classList.remove("cur"));
+      task = null; markActive(null); statusText = null; document.body.classList.remove("busy");
+    }
+    else if (type === "ask") {
+      const a = add(el("ask")), p = document.createElement("p"); p.textContent = d.question;
+      const row = el("row"), y = document.createElement("button"), n = document.createElement("button");
+      y.className = "yes"; y.textContent = "Evet"; y.onclick = () => answer("evet");
+      n.className = "no"; n.textContent = "Hayır"; n.onclick = () => answer("hayır");
+      row.append(n, y); a.append(p, row); asks[d.id] = a; inp.placeholder = "Cevabını yaz…";
+    }
+    else if (type === "ask_done") { asks[d.id]?.classList.add("closed"); delete asks[d.id]; inp.placeholder = "JARVIS'e yaz…"; }
+    else if (type === "machines") machines(d.list);
+    else if (type === "voice") { $("mic").classList.toggle("off", !d.ok); $("mic").title = d.ok ? "Dinle" : d.text; hint(); }
+  }
+};
+
+function answer(t) { api("answer", t); jarvis.on("msg", { role: "user", text: t }); }
+function send() { const t = inp.value.trim(); if (!t) return; inp.value = ""; $("send").classList.remove("show"); api("send", t); }
+async function mic() { const r = await api("mic"); if (r) add(el("m interim", r)); }
+function toggleSpeak() { speak = !speak; $("spk").innerHTML = speak ? SPK_ON : SPK_OFF; api("set_speak", speak); }
+let hotkey = "cmd+shift+j";
+function hint() { $("hint").textContent = $("mic").classList.contains("off") ? "Ses kapalı · yazarak kullan" : `“Hey Jarvis” de ya da ${hotkey.replace(/\+/g, " ").replace("cmd", "⌘").replace("shift", "⇧")}`; }
+
+inp.addEventListener("input", () => $("send").classList.toggle("show", !!inp.value.trim()));
+inp.addEventListener("keydown", e => { if (e.key === "Enter") send(); if (e.key === "Escape" && task) api("stop"); });
+document.addEventListener("keydown", e => { if (document.activeElement !== inp && e.key.length === 1 && !e.metaKey) inp.focus(); });
+
+window.addEventListener("pywebviewready", async () => {
+  const h = await api("hello");
+  speak = !h.speak; toggleSpeak(); hotkey = h.hotkey; machines(h.machines);
+  if (h.voice) { $("mic").title = h.voice; }
+  hint(); inp.focus();
+});
+$("spk").innerHTML = SPK_ON;
+</script>
+</body>
+</html>

@@ -50,6 +50,7 @@ class Jarvis:
         self.web = None                    # görünür tarayıcı oturumu (ilk kullanımda açılır)
         self.ask = lambda q: ""            # görev sırasında kullanıcıya soru; yoksa onaylar reddedilir
         self.on_progress = None
+        self.on_event = None               # arayüz: görev başladı/bitti olayları
         self.awake = False
         self.pending: tuple[str, Intent] | None = None
         self.lock = threading.Lock()
@@ -119,18 +120,34 @@ class Jarvis:
         if intent.source == "yerel-model":   # yerel (ücretsiz) model tokenları; bulut değil
             b.add_tokens(self.llm.last_tokens)
         self.tm.start(tid, model=self.llm.last_model if intent.source == "yerel-model" else "kural")
+        self._emit("task_start", tid=tid, machine=intent.machine, kind=intent.name,
+                   request=(self.tm.get(tid) or {}).get("request", ""))
+        ok, msg = False, ""
         try:
             msg = getattr(self, "do_" + intent.name)(intent, tid=tid, budget=b, say=say)
             if self.tm.stopped(tid):
-                return "Görev durduruldu."
+                msg = "Görev durduruldu."
+                return msg
             self.tm.finish(tid, DONE, msg, budget=b)
+            ok = True
             return msg
         except (BudgetExceeded, TaskError, MacroFailed) as e:
             self.tm.finish(tid, FAILED, error=str(e), budget=b)
-            return f"Durdum: {e}"
+            msg = f"Durdum: {e}"
+            return msg
         except Exception as e:  # beklenmeyen hata da kaydedilir, tekrar denenmez
             self.tm.finish(tid, FAILED, error=f"{type(e).__name__}: {e}", budget=b)
-            return f"Beklenmeyen bir hata oldu: {e}"
+            msg = f"Beklenmeyen bir hata oldu: {e}"
+            return msg
+        finally:
+            self._emit("task_end", tid=tid, machine=intent.machine, ok=ok, text=msg)
+
+    def _emit(self, ev, **d):
+        if self.on_event:
+            try:
+                self.on_event(ev, d)
+            except Exception:   # arayüz hatası görevi bozmasın
+                pass
 
     # ---------------- anlık komutlar (görev kaydı yok) ----------------
     def do_time(self, i):

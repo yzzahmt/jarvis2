@@ -22,6 +22,8 @@ fi
 mkdir -p ~/jarvis-agent ~/projeler
 if [ "$ROLE" = mint ]; then
   curl -fsS "$SRC/browser.py" -o ~/jarvis-agent/browser.py
+  # alt çubuk (overlay) için tk
+  if command -v pacman >/dev/null; then sudo pacman -S --needed --noconfirm tk; else sudo apt-get install -y -qq python3-tk; fi
   python3 -m venv ~/jarvis-agent/.venv
   ~/jarvis-agent/.venv/bin/pip install -q playwright
   ~/jarvis-agent/.venv/bin/python -m playwright install --with-deps chromium

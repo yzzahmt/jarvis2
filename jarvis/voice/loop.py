@@ -56,12 +56,20 @@ def status(msg):
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
+class NoUI:
+    """Arayüz yokken boş kancalar (arayüz: jarvis/ui/app.py)."""
+    def state(self, s): pass
+    def message(self, role, text): pass
+    def ask(self, question, listen=None): return listen(question) if listen else ""
+
+
 class VoiceLoop:
-    def __init__(self):
+    def __init__(self, j=None, ui=None, hotkeys=True):
         self.s = config.load("settings")
         v = self.s.get("voice", {})
         self.v = v
-        self.j = Jarvis(self.s)
+        self.j = j or Jarvis(self.s)
+        self.ui = ui or NoUI()
         from .text_to_speech import TTS
         self.tts = TTS(v.get("tts", "piper"), config.path(f"data/tts/{v.get('piper_voice')}.onnx"),
                        v.get("say_voice", "Yelda"), config.path("data/tmp"))
@@ -76,7 +84,8 @@ class VoiceLoop:
         if v.get("clap_enabled"):
             from .clap_detector import ClapDetector
             self.clap = ClapDetector()
-        self._hotkeys(v)
+        if hotkeys:                # arayüzde kapalı: pynput arka iş parçacığında macOS'ta çöküyor
+            self._hotkeys(v)
         status("Konuşma tanıma modeli yükleniyor...")
         from .speech_to_text import STT
         self.stt = STT(v.get("stt_model", "small"), str(config.path("data/hf")))
@@ -106,16 +115,22 @@ class VoiceLoop:
         status("MİKROFON AÇIK" if on else "MİKROFON KAPALI (yalnızca kısayolla uyanır)")
 
     def say(self, text):
+        self.ui.state("speaking")
         self.tts.speak(text)
+        self.ui.state("idle")
         time.sleep(0.25)
         self.mic.drain()           # kendi sesini komut sanmasın
         if self.ww:
             self.ww.reset()
 
     def ask(self, question):
-        """Görev sırasında soru sor, tek cümlelik cevabı dinle (cevap yoksa "" -> onay verilmemiş sayılır)."""
+        return self.ui.ask(question, listen=self.listen_answer)
+
+    def listen_answer(self, question):
+        """Soruyu söyle, tek cümlelik cevabı dinle (cevap yoksa "" -> onay verilmemiş sayılır)."""
         from .speech_to_text import record_utterance
         self.say(question)
+        self.ui.state("listening")
         audio = record_utterance(self.mic.frames(), RATE, start_timeout=10)
         ans = self.stt.transcribe(audio) if audio is not None else ""
         status(f"sen> {ans}")
@@ -123,6 +138,7 @@ class VoiceLoop:
 
     def sleep_mode(self):
         status("UYKU — 'hey jarvis', kısayol" + (" veya çift alkış" if self.clap else "") + " ile uyanır")
+        self.ui.state("sleep")
         for f in self.mic.frames(timeout=0.2):
             if self.wake_evt.is_set():
                 break
@@ -134,7 +150,9 @@ class VoiceLoop:
 
     def active_mode(self):
         status("AKTİF — dinliyorum")
-        self.say(self.j.handle("uyan"))
+        greet = self.j.handle("uyan")
+        self.ui.message("jarvis", greet)
+        self.say(greet)
         from .speech_to_text import record_utterance
         idle_until = time.time() + self.v.get("idle_sleep_s", 60)
         while True:
@@ -142,15 +160,19 @@ class VoiceLoop:
                 self.j.handle("uyu")
                 self.say("Bir süredir komut gelmedi, uyku moduna geçiyorum.")
                 return
+            self.ui.state("listening")
             audio = record_utterance(self.mic.frames(), RATE, start_timeout=8)
             if audio is None:
                 continue
+            self.ui.state("thinking")
             text = self.stt.transcribe(audio)
             if not text or len(norm(text)) < 2:
                 continue
             status(f"sen> {text}")
+            self.ui.message("user", text)
             idle_until = time.time() + self.v.get("idle_sleep_s", 60)
             reply = self.j.handle(text, say=self.say, ask=self.ask)
+            self.ui.message("jarvis", reply)
             self.say(reply)
             if not self.j.awake:
                 return

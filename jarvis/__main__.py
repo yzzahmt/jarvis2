@@ -1,4 +1,4 @@
-"""python -m jarvis [text|serve|voice|status]"""
+"""python -m jarvis [app|text|serve|voice|status]"""
 import sys
 
 
@@ -11,6 +11,9 @@ def main():
         api = config.load("settings").get("api", {})
         uvicorn.run(create_app(), host=api.get("host", "127.0.0.1"), port=api.get("port", 8765))
         return
+    if mode == "app":
+        from .ui.app import main as app_main
+        return app_main()
     if mode == "voice":
         from .voice.loop import main as voice_main
         return voice_main()

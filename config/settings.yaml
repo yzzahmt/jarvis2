@@ -29,7 +29,7 @@ permissions:
 voice:
   wake_word: hey_jarvis
   wake_threshold: 0.5
-  clap_enabled: false
+  clap_enabled: true       # çift alkışla uyan
   hotkey: "<cmd>+<shift>+j"
   idle_sleep_s: 60
   stt_model: small

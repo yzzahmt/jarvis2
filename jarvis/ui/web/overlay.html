@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>JARVIS çubuk</title>
+<style>
+:root { --bg: rgba(250, 250, 252, 0.82); --text: #1d1d1f; --dim: #6e6e73; --line: rgba(0,0,0,.08); --ok: #30d158; --bad: #ff453a; }
+@media (prefers-color-scheme: dark) { :root { --bg: rgba(30, 30, 32, 0.82); --text: #f5f5f7; --dim: #a1a1a6; --line: rgba(255,255,255,.1); } }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: transparent; overflow: hidden; }
+body { font: 13px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; color: var(--text);
+  -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; display: grid; place-items: center; }
+.pill { width: calc(100% - 16px); height: calc(100% - 16px); border-radius: 999px; background: var(--bg);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8); backdrop-filter: blur(30px) saturate(1.8);
+  border: .5px solid var(--line); box-shadow: 0 8px 28px rgba(0,0,0,.22);
+  display: flex; align-items: center; gap: 12px; padding: 0 20px 0 12px; position: relative; overflow: hidden;
+  animation: in .45s cubic-bezier(.2,.9,.2,1.1); }
+@keyframes in { from { transform: translateY(16px) scale(.96); opacity: 0 } to { transform: none; opacity: 1 } }
+.orb { position: relative; width: 38px; height: 38px; flex-shrink: 0; }
+.orb i { position: absolute; inset: 0; border-radius: 50%; filter: blur(5px); animation: spin 3s linear infinite; }
+.orb i:nth-child(1) { background: radial-gradient(circle at 30% 30%, #64d2ff, transparent 65%); }
+.orb i:nth-child(2) { background: radial-gradient(circle at 70% 45%, #5e5ce6, transparent 62%); animation-duration: 4s; animation-direction: reverse; }
+.orb i:nth-child(3) { background: radial-gradient(circle at 45% 75%, #bf5af2, transparent 62%); animation-duration: 5s; }
+body.end .orb i { animation-duration: 14s; }
+@keyframes spin { to { transform: rotate(360deg) } }
+.txt { min-width: 0; flex: 1; }
+.title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub { color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .3s; }
+body.ok .sub { color: var(--ok); } body.fail .sub { color: var(--bad); }
+.bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 40%;
+  background: linear-gradient(90deg, transparent, #5e5ce6, #bf5af2, transparent); animation: slide 1.6s ease-in-out infinite; }
+body.end .bar { display: none; }
+@keyframes slide { from { transform: translateX(-100%) } to { transform: translateX(260%) } }
+</style>
+</head>
+<body>
+<div class="pill">
+  <div class="orb"><i></i><i></i><i></i></div>
+  <div class="txt"><div class="title" id="title">JARVIS</div><div class="sub" id="sub"></div></div>
+  <div class="bar"></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+window.bar = {
+  on(m) {
+    const b = document.body;
+    if (m.t === "show") {
+      b.className = ""; $("title").textContent = m.title || "JARVIS"; $("sub").textContent = m.text || "";
+      const p = document.querySelector(".pill"); p.style.animation = "none"; p.offsetHeight; p.style.animation = "";
+    } else if (m.t === "step") { $("sub").textContent = m.text; }
+    else if (m.t === "done") { b.className = "end " + (m.ok ? "ok" : "fail"); $("sub").textContent = (m.ok ? "✓ " : "✕ ") + (m.text || ""); }
+  }
+};
+</script>
+</body>
+</html>
