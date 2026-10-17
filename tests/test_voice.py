@@ -31,3 +31,10 @@ def test_single_and_many_claps_ignored():
 
 def test_quiet_never_triggers():
     assert _run("." * 100) == 0
+
+
+def test_speakable_and_stt_fixes():
+    from jarvis.text import fix_stt, speakable
+    assert speakable("Kara delikler **çöker** 🌌✨ bkz. https://x.com/a") == "Kara delikler çöker bkz. bağlantı"
+    assert speakable("👍") == ""
+    assert fix_stt("Carvis kaçı os'ta testleri çalıştır") == "Jarvis CachyOS'ta testleri çalıştır"

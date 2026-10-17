@@ -7,6 +7,8 @@ import uuid
 import wave
 from pathlib import Path
 
+from ..text import speakable
+
 
 class TTS:
     def __init__(self, engine="piper", voice_path=None, say_voice="Yelda", tmp="/tmp"):
@@ -36,6 +38,9 @@ class TTS:
 
     def speak(self, text: str, block=True):
         print("jarvis>", text, flush=True)
+        text = speakable(text)
+        if not text:
+            return
         cmd, wav = self._cmd(text)
         if not cmd:
             return
