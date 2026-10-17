@@ -1,15 +1,17 @@
 # JARVIS — İlerleme
 
 ## Durum (2026-10-17)
-- **Tamamlanan:** Aşama 1, 2, 5, 6 (Mac tarafı), 7 (kod + çevrimdışı ses testi), 8 (Claude yerine Gemini CLI/Aider adaptörü).
+- **Tamamlanan:** Aşama 1, 2, 5, 6 (Mac tarafı), 7 (kod + çevrimdışı ses testi), 8 (Claude yerine Gemini CLI/Aider adaptörü), genel ajan + beceri belleği + makrolar (yenilikler/005).
 - **Bekleyen (kullanıcı eylemi gerekli):** Aşama 3–4 — Linux makinelerinde `setup.sh` çalıştırmak; gerçek mikrofonla ses denemesi.
 - **Sıradaki tek adım:** Kullanıcı `setup.sh` çıktısındaki `<rol> <ip> <kullanıcı>` satırlarını iletince `config/machines.yaml` doldur, `python -m jarvis status` ile bağlantıyı test et, Mint'te YouTube ve CachyOS'ta test çalıştırmayı doğrula.
 
 ## Testler
 | Test | Durum |
 |---|---|
-| pytest (27 test: yönlendirme, görev durumları, tekrar engeli, bütçe/sonsuz döngü, onay, çevrimdışı, hafıza, gizli bilgi, yeniden başlatma, alkış) | ✅ |
-| Yerel model Türkçe niyet ayrıştırma (qwen3:4b) | ✅ 1,3–4 sn/komut |
+| pytest (37 test: yönlendirme, görev durumları, tekrar engeli, bütçe/sonsuz döngü, onay, çevrimdışı, hafıza, gizli bilgi, yeniden başlatma, alkış, ajan/araçlar/beceri/makro) | ✅ |
+| Genel ajan gerçek modelle (qwen3:8b, tek model RAM'de) | ✅ 5–25 sn/görev, yönlendirme 1–2 sn |
+| ask_ai → Gemini/ChatGPT web sohbeti | ⏳ tarayıcıda oturum açılınca denenecek |
+| Yerel model Türkçe niyet ayrıştırma (qwen3:4b → artık qwen3:8b) | ✅ 1–2 sn/komut (sıcak) |
 | STT Türkçe (whisper small) | ✅ yükleme 14 sn (bir kez), çeviri 1–2 sn |
 | TTS Türkçe (Piper dfki) | ✅ hoparlörden çalındı |
 | Uyandırma "hey jarvis" (sentetik ses) / gürültüde yanlış uyanma | ✅ / ✅ yok |
@@ -25,6 +27,8 @@
 - Piper'da tek Türkçe ses var (dfki, erkek); beğenilmezse `voice.tts: say` (Yelda).
 - Antigravity (Mac'te kurulu) CLI ile otomasyona uygun değil → adaptör ertelendi (Aşama 9).
 - `data/serve/` geçici kurulum dosyaları; kurulum bitince silinebilir.
+- qwen3:8b ilk yüklemede HDD'den ~1–2 dk sürer; sonra `keep_alive: 30m` ile bellekte kalır (~5,9 GB).
+- Ajan küçük model olduğu için bazen gereksiz adım atıyor; beceri belleği yanlış bir çözümü de örnek diye saklayabilir (ipucunda "doğrula" uyarısı var).
 
 ## Aşama 1 — Ortam (MacBook, ölçüldü)
 | Öğe | Değer |

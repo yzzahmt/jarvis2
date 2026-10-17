@@ -3,8 +3,12 @@ api: {host: 127.0.0.1, port: 8765}   # yalnızca yerel; internete açılmaz
 
 llm:
   url: http://127.0.0.1:11434
-  model: qwen3:4b
-  fallback_models: [gemma3:4b]
+  model: qwen3:8b            # yönlendirme + ajan aynı model: RAM'de tek model kalır (değiş-tokuş ~2 dk sürüyordu)
+  fallback_models: [qwen3:4b, gemma3:4b]
+  agent_model: qwen3:8b
+  keep_alive: 30m
+  num_ctx: 8192
+  vision_model: gemma3:4b
   timeout_s: 180   # ilk yükleme HDD'den yavaş olabilir
 
 budget:
@@ -35,4 +39,10 @@ voice:
 
 coder:                    # kodlama ajanı sırası (Claude yok)
   order: [gemini, aider]
-  timeout_s: 180   # ilk yükleme HDD'den yavaş olabilir0
+  timeout_s: 900
+
+agent:                    # genel ajan (sabit komutlara uymayan istekler)
+  max_turns: 25
+  max_task_seconds: 900
+  skills: true            # başarılı görevlerin adımlarını beceri olarak sakla
+  macros: config/macros.yaml

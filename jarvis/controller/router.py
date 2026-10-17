@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from ..text import norm
 
 INTENTS = ["time", "date", "sleep", "wake", "status", "stop", "open_app", "open_url", "youtube",
-           "pick_result", "run_tests", "code", "remember", "recall", "tasks", "chat"]
+           "pick_result", "run_tests", "code", "remember", "recall", "tasks", "agent", "chat"]
 
 
 @dataclass
@@ -94,11 +94,14 @@ LLM_SYSTEM = (
     "Sen JARVIS adlı Türkçe asistanın komut ayrıştırıcısısın. Kullanıcı cümlesini şu JSON'a çevir: "
     '{"intent": <' + "|".join(INTENTS) + '>, "args": {...}, "machine": "mac|cachyos|mint", '
     '"reply": "<sadece intent chat ise kısa Türkçe yanıt>"}. '
-    "args: youtube->{query}, open_app->{app}, open_url->{url}, run_tests->{project}, code->{task}. "
+    "args: youtube->{query}, open_app->{app}, open_url->{url}, run_tests->{project}, code->{task}, agent->{task}. "
+    "agent: bilgisayarda iş yapmayı gerektiren ama diğer intentlere uymayan her istek (dosya bulma/düzenleme, "
+    "web'de araştırma, uygulama veya ayar kontrolü, çok adımlı işler). Sohbet ve bilgi sorusu chat'tir. "
     "cachyos: kodlama/test makinesi, mint: tarayıcı/YouTube makinesi, varsayılan mac. "
     "Şarkı/müzik/video çalma veya izleme her zaman youtube'dur. open_app yalnızca uygulama adı içindir. Örnekler: "
     '"tarkanın son şarkısını çal" -> {"intent":"youtube","args":{"query":"tarkan son şarkı"},"machine":"mint"}; '
     '"oyunumdaki hatayı düzelt" -> {"intent":"code","args":{"task":"oyundaki hatayı düzelt"},"machine":"cachyos"}; '
+    '"masaüstündeki pdfleri listele" -> {"intent":"agent","args":{"task":"masaüstündeki pdf dosyalarını listele"},"machine":"mac"}; '
     '"nasılsın" -> {"intent":"chat","args":{},"machine":"mac","reply":"İyiyim, teşekkürler."}. Sadece JSON yaz.')
 
 

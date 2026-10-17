@@ -19,6 +19,7 @@ def main():
     if mode == "status":
         print(j.do_status(None))
         return
+    j.on_progress = lambda name, args: print(f"  · {name} {str(args)[:100]}")
     print("JARVIS metin modu. Çıkmak için 'çık'.")
     while True:
         try:
@@ -28,7 +29,8 @@ def main():
         if line.lower() in ("çık", "cik", "exit", "quit"):
             break
         if line:
-            print("jarvis>", j.handle(line, say=lambda m: print("jarvis>", m)))
+            print("jarvis>", j.handle(line, say=lambda m: print("jarvis>", m),
+                                      ask=lambda q: input(f"jarvis> {q}\nsen> ")))
 
 
 if __name__ == "__main__":

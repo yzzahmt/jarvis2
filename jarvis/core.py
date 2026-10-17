@@ -7,12 +7,14 @@ from dataclasses import asdict
 
 from . import config
 from .adapters.coder import Coder
+from .agent import loop as agent_loop
+from .agent.skills import MacroFailed, Skills
 from .agents.base import build_agents, qpath
 from .controller.budget import Budget, BudgetExceeded
 from .controller.permissions import Permissions
 from .controller.router import Intent, route, route_llm
 from .controller.task_manager import CONFIRM, DONE, FAILED, PENDING, RUNNING, TaskManager
-from .llm import LLMError, Ollama
+from .llm import LLMError, Ollama, OpenAICompat
 from .memory.db import DB
 from .text import norm
 
@@ -23,6 +25,7 @@ class TaskError(Exception):
 
 INSTANT = {"time", "date", "sleep", "wake", "status", "stop", "remember", "recall", "tasks", "chat"}
 DEDUPE = {"run_tests", "code"}   # aynı görev kısa sürede tekrar gelirse onay sor
+TOOL_GATED = {"agent", "macro"}  # onay her araç adımında ayrıca sorulur; baştan ikinci kez sorulmaz
 GUNLER = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
 AYLAR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül",
          "Ekim", "Kasım", "Aralık"]
@@ -42,17 +45,23 @@ class Jarvis:
         self.llm = llm or Ollama(self.s.get("llm", {}))
         self.agents = agents if agents is not None else build_agents(self.machines)
         self.coder = Coder(self.s.get("coder", {}))
+        self.agent_cfg = self.s.get("agent", {})
+        self.skills = Skills(self.db, config.path(self.agent_cfg.get("macros", "config/macros.yaml")))
+        self.web = None                    # görünür tarayıcı oturumu (ilk kullanımda açılır)
+        self.ask = lambda q: ""            # görev sırasında kullanıcıya soru; yoksa onaylar reddedilir
+        self.on_progress = None
         self.awake = False
         self.pending: tuple[str, Intent] | None = None
         self.lock = threading.Lock()
         self.recovered = self.tm.recover()
 
     # ---------------- giriş noktası ----------------
-    def handle(self, text: str, say=lambda msg: None) -> str:
+    def handle(self, text: str, say=lambda msg: None, ask=None) -> str:
         t = norm(text)
         if re.fullmatch(r"(jarvis )?(dur|durdur|iptal|görevi durdur)", t):
             return self.do_stop(None)          # çalışan görevi kilit beklemeden durdur
         with self.lock:
+            self.ask = ask or (lambda q: "")
             return self._handle(text, t, say)
 
     def _handle(self, text, t, say):
@@ -65,6 +74,9 @@ class Jarvis:
             self.tm.stop(tid)
             if re.match(r"^(hayır|iptal|vazgeç|yapma)\b", t):
                 return "Tamam, iptal ettim."
+        macro, mvars = self.skills.match(text)
+        if macro:
+            return self._task(text, Intent("macro", {"name": macro["name"], "vars": mvars}), say)
         intent = route(text, self.machines)
         if intent is None:
             try:
@@ -73,6 +85,8 @@ class Jarvis:
                 return "Bunu anlayamadım ve yerel model yanıt vermedi. Daha kısa söyler misin?"
         if intent.name == "chat":
             intent.args.setdefault("text", text)
+        if intent.name == "agent":       # yönlendiricinin yeniden yazımı yolları bozabilir; asıl cümle verilir
+            intent.args["task"] = text
         if intent.name in INSTANT:
             return getattr(self, "do_" + intent.name)(intent)
         return self._task(text, intent, say)
@@ -84,7 +98,7 @@ class Jarvis:
             return f"{nm} için bağlantı ayarı yok. config/machines.yaml dosyasını doldurmalıyız."
         if (busy := self.tm.busy(intent.machine)):
             return f"{nm} bilgisayarında zaten bir görev çalışıyor ({busy}). 'Dur' diyerek durdurabilirsin."
-        cats = self.perms.needs_confirm(intent.name, text)
+        cats = [] if intent.name in TOOL_GATED else self.perms.needs_confirm(intent.name, text)
         prev = self.tm.recent_done(text, intent.machine) if intent.name in DEDUPE else None
         task = self.tm.create(text, asdict(intent), intent.machine, plan=intent.name,
                               tools=[intent.name], permissions=cats,
@@ -111,7 +125,7 @@ class Jarvis:
                 return "Görev durduruldu."
             self.tm.finish(tid, DONE, msg, budget=b)
             return msg
-        except (BudgetExceeded, TaskError) as e:
+        except (BudgetExceeded, TaskError, MacroFailed) as e:
             self.tm.finish(tid, FAILED, error=str(e), budget=b)
             return f"Durdum: {e}"
         except Exception as e:  # beklenmeyen hata da kaydedilir, tekrar denenmez
@@ -290,3 +304,48 @@ class Jarvis:
                                      budget, self.tm.stop_flags.get(tid))
             t = self._tests(i, d, tid, budget)
         return f"{tool} görevi bitirdi, testler geçti: {self._summary(t.out)}."
+
+    # ---------------- genel ajan ----------------
+    def _web(self):
+        if self.web is None:
+            from .automation.session import BrowserSession
+            self.web = BrowserSession(config.path("data/browser-profile"))
+        return self.web
+
+    def _ctx(self, tid, budget):
+        def progress(name, args):
+            if self.on_progress:
+                self.on_progress(name, args)
+        return agent_loop.Ctx(db=self.db, agents=self.agents, machines=self.machines, coder=self.coder,
+                              budget=budget, browser=self._web, vision=lambda q, f: self.llm.vision(q, f),
+                              ask=self.ask, progress=progress, stop=self.tm.stop_flags.get(tid))
+
+    def _agent_llm(self):
+        """Bulut beyni yalnızca ayarlıysa ve bütçe izin veriyorsa; yoksa yerel model."""
+        c = self.s.get("cloud_brain") or {}
+        if c and self.s.get("budget", {}).get("max_cloud_calls_per_task", 0) > 0:
+            cloud = OpenAICompat(c)
+            if cloud.available():
+                return cloud
+        return self.llm
+
+    def do_agent(self, i, tid, budget, say):
+        task = (i.args.get("task") or i.args.get("text") or "").strip()
+        if not task:
+            raise TaskError("Ne yapmamı istediğini anlayamadım")
+        budget.max_agent_turns = max(budget.max_agent_turns, self.agent_cfg.get("max_turns", 25))
+        budget.max_task_seconds = self.agent_cfg.get("max_task_seconds", budget.max_task_seconds)
+        llm = self._agent_llm()
+        self.tm.update(tid, model=getattr(llm, "agent_model", None) or getattr(llm, "model", "?"))
+        use_skills = self.agent_cfg.get("skills", True)
+        answer, steps = agent_loop.run(task, self._ctx(tid, budget), llm, budget,
+                                       hint=self.skills.hint(task) if use_skills else "")
+        self.tm.update(tid, tools=json.dumps([s["tool"] for s in steps]))
+        if use_skills and not self.tm.stopped(tid):
+            self.skills.save(task, steps, answer)
+        return answer
+
+    def do_macro(self, i, tid, budget, say):
+        m = next(m for m in self.skills.macros if m["name"] == i.args["name"])
+        self.tm.update(tid, model="makro")
+        return self.skills.run_macro(self._ctx(tid, budget), m, i.args.get("vars", {}), budget)

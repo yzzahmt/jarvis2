@@ -1,0 +1,28 @@
+# Makrolar: modelsiz, sabit adımlar. triggers = normalize edilmiş metne tam eşleşen regex
+# (küçük harf, noktalama yok). (?P<ad>...) grupları adımlarda {ad} olarak kullanılır.
+# Araçların onay kuralları makroda da geçerlidir.
+macros:
+  - name: çalışma modu
+    triggers: ["(jarvis )?çalışma modu(nu aç)?", "(jarvis )?çalışmaya başla"]
+    steps:
+      - {tool: set_volume, args: {level: 20}}
+      - {tool: open_app, args: {app: Terminal}}
+      - {tool: open_app, args: {app: Notes}}
+    say: Çalışma modu hazır, ses kısıldı.
+
+  - name: müzik kontrol
+    triggers: ["(müziği|şarkıyı) (durdur|duraklat)"]
+    steps:
+      - {tool: applescript, args: {script: 'tell application "Music" to pause'}}
+    say: Müzik duraklatıldı.
+
+  - name: ses ayarı
+    triggers: ["sesi (yüzde )?(?P<level>\\d{1,3}) yap", "ses (seviyesi )?(yüzde )?(?P<level>\\d{1,3})"]
+    steps:
+      - {tool: set_volume, args: {level: "{level}"}}
+    say: Ses yüzde {level}.
+
+  - name: gemini'ye sor
+    triggers: ["gemini'?ye sor:? (?P<q>.+)", "gemini'?ye (?P<q>.+) diye sor"]
+    steps:
+      - {tool: ask_ai, args: {target: gemini, prompt: "{q}"}}

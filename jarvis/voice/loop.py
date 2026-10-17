@@ -112,6 +112,15 @@ class VoiceLoop:
         if self.ww:
             self.ww.reset()
 
+    def ask(self, question):
+        """Görev sırasında soru sor, tek cümlelik cevabı dinle (cevap yoksa "" -> onay verilmemiş sayılır)."""
+        from .speech_to_text import record_utterance
+        self.say(question)
+        audio = record_utterance(self.mic.frames(), RATE, start_timeout=10)
+        ans = self.stt.transcribe(audio) if audio is not None else ""
+        status(f"sen> {ans}")
+        return ans
+
     def sleep_mode(self):
         status("UYKU — 'hey jarvis', kısayol" + (" veya çift alkış" if self.clap else "") + " ile uyanır")
         for f in self.mic.frames(timeout=0.2):
@@ -141,7 +150,7 @@ class VoiceLoop:
                 continue
             status(f"sen> {text}")
             idle_until = time.time() + self.v.get("idle_sleep_s", 60)
-            reply = self.j.handle(text, say=self.say)
+            reply = self.j.handle(text, say=self.say, ask=self.ask)
             self.say(reply)
             if not self.j.awake:
                 return
