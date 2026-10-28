@@ -71,8 +71,7 @@ class VoiceLoop:
         self.j = j or Jarvis(self.s)
         self.ui = ui or NoUI()
         from .text_to_speech import TTS
-        self.tts = TTS(v.get("tts", "piper"), config.path(f"data/tts/{v.get('piper_voice')}.onnx"),
-                       v.get("say_voice", "Yelda"), config.path("data/tmp"))
+        self.tts = TTS.from_settings(v, config.path("data"))
         self.wake_evt = threading.Event()
         self.mic = Mic()
         self.ww = self.clap = None

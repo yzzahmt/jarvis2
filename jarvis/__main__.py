@@ -1,4 +1,4 @@
-"""python -m jarvis [app|text|serve|voice|status]"""
+"""python -m jarvis [app|text|serve|voice|status|secret]"""
 import sys
 
 
@@ -14,6 +14,9 @@ def main():
     if mode == "app":
         from .ui.app import main as app_main
         return app_main()
+    if mode == "secret":
+        from .secrets import cli
+        return cli(sys.argv[2:])
     if mode == "voice":
         from .voice.loop import main as voice_main
         return voice_main()

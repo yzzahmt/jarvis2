@@ -1,0 +1,110 @@
+JARVIS — DEVAM NOTU (yeni bir yapay zekâ oturumu buradan başlasın)
+Son güncelleme: 28.10.2026
+==========================================================================
+
+YENİ OTURUMA İLK MESAJ OLARAK ŞUNU YAZ:
+  "Jarvis projesine devam. /Volumes/HDD/Projeler/Projeler/Jarvis/devam.txt dosyasını oku, kaldığımız yerden devam et."
+
+--------------------------------------------------------------------------
+1) UYGULAMANIN AMACI
+--------------------------------------------------------------------------
+Jarvis: Türkçe konuşan, kısayolla (Cmd+Shift+J) ya da "hey jarvis" diye uyanan, bilgisayarımdaki her işi yapabilen
+kişisel asistan. İstenenler:
+- Fareyi ve klavyeyi kontrol edip her uygulamada iş yapmak.
+- "X sitesinden X ürününü al" → siteye girer, hesabıma girer, sepete ekler, ödeme adımında BANA SORAR.
+- "iyzico API anahtarını al" → panele girer (gerekirse hesap açar, önce sorar), anahtarı bulur, projemin .env dosyasına koyar.
+- Benimle sohbet etmek, fikir vermek; doğal, anlaşılır cümleler, insani bir sesle.
+- KULLANIRKEN Claude tokeni harcamamak. (Geliştirirken Claude kullanılabilir.) Beyin: ücretsiz Gemini → Groq →
+  Cerebras → OpenRouter → yerel qwen3:8b (Ollama). Claude hiç çağrılmaz.
+
+Makineler: MacBook M3 16 GB (ana/kontrol) + CachyOS (kod/test, SSH) + Linux Mint (otomasyon/YouTube, SSH).
+
+--------------------------------------------------------------------------
+2) KURALLAR (her oturumda uy)
+--------------------------------------------------------------------------
+- Her şey HDD'de: /Volumes/HDD/Projeler/Projeler/Jarvis. Dahili diske önbellek/model/venv YAZMA.
+  Komutlardan önce: source scripts/env.sh (venv, Ollama modelleri, pip/HF/Playwright önbellekleri HDD'ye yönlenir).
+- Az token: yalnızca gereken dosyaları oku. Önce bu dosya, sonra docs/PROGRESS.md, sonra en son yenilikler/ notu.
+- Kurulumdan önce kullanıcıya sor. Tek seferde bir aşama.
+- Her değişiklikten sonra yenilikler/ içine numaralı not: NNN_YYYY-AA-GG_konu.md. Ayrıca docs/PROGRESS.md'yi güncelle.
+- Git commit'lerine yapay zekâ ortak yazar satırı (Co-Authored-By) EKLEME; GitHub iş portföyüm.
+- Kullanıcıyla Türkçe konuş.
+
+--------------------------------------------------------------------------
+3) NASIL BAŞLATILIR
+--------------------------------------------------------------------------
+- En kolay: Finder'da Jarvis klasöründeki JARVIS.app'e çift tıkla (Dock'a sürükleyebilirsin).
+- Terminal:
+    /Volumes/HDD/Projeler/Projeler/Jarvis/scripts/jarvis.sh          # arayüz + ses (varsayılan)
+    /Volumes/HDD/Projeler/Projeler/Jarvis/scripts/jarvis.sh text     # yazarak konuşma
+    /Volumes/HDD/Projeler/Projeler/Jarvis/scripts/jarvis.sh status   # bağlantı durumu
+- Çalışırken: Cmd+Shift+J = uyandır / sözünü kes, Cmd+Shift+M = mikrofon aç/kapat, ya da "hey jarvis".
+- Kasaya şifre ekleme: source scripts/env.sh && python -m jarvis secret set trendyol.com:email
+                      (ayrıca: secret set site.com:sifre | secret list | secret del ad)
+- HDD takılı olmalı. Ollama'yı betik kendisi başlatır.
+
+--------------------------------------------------------------------------
+4) MİMARİ (kısa)
+--------------------------------------------------------------------------
+jarvis/core.py              Ana beyin: komut → kural / makro / genel ajan; sohbet (CHAT_SYSTEM)
+jarvis/controller/router.py Türkçe kural tabanlı yönlendirme (modelsiz, hızlı)
+jarvis/agent/loop.py        Genel ajan döngüsü + talimat (SYSTEM)
+jarvis/agent/tools.py       Araçlar: shell, dosya, open_app, applescript, look_screen, click_on, click, mouse,
+                            type_text, press_keys, web_search, fetch_url, browser, ask_ai, remember, ask_user
+jarvis/agent/skills.py      Başarılı görevleri beceri olarak saklar (sonraki sefer daha az adım/token); makrolar
+jarvis/automation/session.py Görünür Playwright tarayıcısı (oturumlar data/browser-profile'da kalıcı);
+                            numaralı öğe listesi, fill_secret, save_secret, ödeme/hesap tanıma
+jarvis/secrets.py           macOS Anahtar Zinciri kasası (servis "jarvis"); model şifreleri/anahtarları GÖRMEZ
+jarvis/brains.py, llm.py    Çoklu ücretsiz beyin + yerel Ollama; görme (vision) yalnızca Gemini, yoksa gemma3
+jarvis/voice/               STT faster-whisper large-v3-turbo, TTS Edge (Ava), uyandırma, alkış
+jarvis/ui/                  Masaüstü arayüzü (JARVIS.app bunu açar)
+config/settings.yaml        Tüm ayarlar (ses, beyinler, bütçe, izinler)
+config/machines.yaml        Linux makinelerinin IP/kullanıcıları (henüz boş)
+config/macros.yaml          Modelsiz sabit komutlar
+.env                        API anahtarları (git dışı). Örnek: .env.example
+data/                       Modeller, önbellek, veritabanı, tarayıcı profili (git dışı)
+
+Güvenlik (kodda, model atlayamaz): "Siparişi onayla / Satın al / Öde" ve ödeme sayfasında devam/Enter → kullanıcıya
+tutarla sorulur; hesap oluşturma → sorulur; kart/CVV/IBAN alanına yazmak yasak (sitedeki kayıtlı kart kullanılır).
+
+--------------------------------------------------------------------------
+5) NE YAPILDI
+--------------------------------------------------------------------------
+- Aşama 1-2: Mac ortamı ölçüldü, Python 3.11 venv, Ollama (qwen3:8b, gemma3:4b) HDD'de.
+- Çekirdek: görev yöneticisi, bütçe/sonsuz döngü koruması, onay sistemi, SQLite hafıza.
+- Ses: Türkçe ses tanıma, "hey jarvis", çift alkış, sözü kesme.
+- Tarayıcı + YouTube; Linux ajanları için SSH altyapısı ve setup.sh (makinelerde henüz çalıştırılmadı).
+- Kodlama ajanı: Gemini CLI / Aider (CachyOS'ta). Genel ajan + beceri belleği + makrolar. Masaüstü arayüzü, JARVIS.app.
+- Çoklu ücretsiz beyin (kota bitince sıradakine geçer).
+- 28.10.2026 (yenilikler/009, 010):
+  * Tam bilgisayar kontrolü: click_on (ekranı Gemini ile görüp tarif edilen yere tıklar), mouse (kaydır/sürükle).
+  * Tarayıcı: numaralı öğeler, yazma, seçme, kaydırma, sekmeler, kasadan şifre yazma, API anahtarını .env'e kaydetme.
+  * Kasa: macOS Anahtar Zinciri.
+  * Ses: Edge sinir ağı sesi, kullanıcı Ava'yı (en-US-AvaMultilingualNeural, Türkçe konuşur) seçti.
+    Servis ara sıra boş dönüyordu → her cümle 3 kez denenir, ancak üst üste 3 cümle olmazsa 2 dk Piper'a düşer.
+  * Sohbet ve ajan talimatları doğal Türkçe için yeniden yazıldı.
+  * Testler: 49 geçiyor (source scripts/env.sh && python -m pytest -q).
+
+--------------------------------------------------------------------------
+6) NEREDE KALDIK / SIRADAKİ ADIMLAR
+--------------------------------------------------------------------------
+Kullanıcının yapması gerekenler:
+  [ ] Ücretsiz Gemini anahtarı: https://aistudio.google.com/apikey → Jarvis/.env içine GEMINI_API_KEY=...
+      (Bu olmadan ekran görme ve Türkçe kalite zayıf; yerel modele kalır.)
+  [ ] Sistem Ayarları > Gizlilik ve Güvenlik: Erişilebilirlik + Ekran Kaydı + Mikrofon izni → JARVIS.app (ve Terminal).
+  [ ] Sık kullanılan sitelere Jarvis'in açtığı tarayıcıda bir kez giriş yap (oturum kalır) veya kasaya ekle.
+  [ ] Linux makinelerinde setup.sh (docs/CACHYOS_SETUP.md, docs/LINUX_MINT_SETUP.md); çıktıyı Claude'a ver →
+      config/machines.yaml doldurulur.
+
+Anahtar gelince Claude'un yapacakları (sırayla):
+  1. Gemini model adını doğrula (gerekirse settings.yaml'daki gemini-2.5-flash'ı güncelle).
+  2. Gerçek denemeler (metin modunda): "Finder'da İndirilenler'i aç" (click_on); bir sitede ürünü sepete ekle
+     (ödeme onayında DURMALI); iyzico sandbox API anahtarını test projesinin .env'ine al.
+  3. Sorunlara göre talimat/araç düzeltmeleri, yenilikler/ notu, PROGRESS.md güncellemesi.
+  4. Değişiklikler henüz git'e commit EDİLMEDİ (kullanıcı onayı bekleniyor; commit mesajında yapay zekâ satırı yok).
+
+Bilinen sorunlar:
+- CAPTCHA ve SMS kodunu Jarvis geçemez; kullanıcıya sorar.
+- Google gibi siteler otomatik tarayıcıda girişi engelleyebilir; o sitelere ilk giriş elle yapılır.
+- Türkçe uyandırma kelimesi yok ("hey jarvis" kullanılıyor).
+- Edge'de tr-TR-AhmetNeural sesi denemede üretilemedi.

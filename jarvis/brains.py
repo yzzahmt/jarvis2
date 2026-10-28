@@ -42,9 +42,9 @@ class Brains:
         with self.lock:
             self.until[b.name] = float("inf") if sec is None else time.time() + sec
 
-    def _try(self, fn_name, *a, **k):
+    def _try(self, fn_name, *a, only=None, **k):
         errors = []
-        for b in self.ready():
+        for b in filter(only or bool, self.ready()):
             try:
                 out = getattr(b, fn_name)(*a, **k)
                 self.last_model, self.last_tokens = f"{b.name}:{b.model}", b.last_tokens
@@ -69,6 +69,12 @@ class Brains:
 
     def chat(self, messages, max_tokens=400):
         return self._try("chat", messages, max_tokens=max_tokens)
+
+    def can_see(self) -> bool:
+        return any(b.sees for b in self.ready())
+
+    def vision(self, question, image_path):
+        return self._try("vision", question, image_path, only=lambda b: b.sees)
 
     # mesaj biçimi tüm sağlayıcılarda aynı
     def assistant_msg(self, rep):

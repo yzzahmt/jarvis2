@@ -1,9 +1,13 @@
 # JARVIS — İlerleme
 
-## Durum (2026-10-17)
-- **Tamamlanan:** Aşama 1, 2, 5, 6 (Mac tarafı), 7 (kod + çevrimdışı ses testi), 8 (Claude yerine Gemini CLI/Aider adaptörü), genel ajan + beceri belleği + makrolar (yenilikler/005).
-- **Bekleyen (kullanıcı eylemi gerekli):** Aşama 3–4 — Linux makinelerinde `setup.sh` çalıştırmak; gerçek mikrofonla ses denemesi.
-- **Sıradaki tek adım:** Kullanıcı `setup.sh` çıktısındaki `<rol> <ip> <kullanıcı>` satırlarını iletince `config/machines.yaml` doldur, `python -m jarvis status` ile bağlantıyı test et, Mint'te YouTube ve CachyOS'ta test çalıştırmayı doğrula.
+## Durum (2026-10-28)
+- **Tamamlanan:** Aşama 1, 2, 5, 6 (Mac), 7, 8, genel ajan + beceri + makrolar, **tam bilgisayar kontrolü + Edge sesi + kasa (yenilikler/009)**, Ava sesi + devam.txt (010).
+- **Bekleyen (kullanıcı):** `.env`'e `GEMINI_API_KEY`; Mac izinleri (Erişilebilirlik + Ekran Kaydı, Jarvis'i çalıştıran uygulamaya);
+  sık kullanılan siteler için bir kez tarayıcıda giriş veya `python -m jarvis secret set site.com:email|sifre`;
+  Aşama 3–4 Linux `setup.sh`.
+- **Sıradaki tek adım:** Anahtar gelince `python -m jarvis` metin modunda gerçek görevler: "Finder'da İndirilenler'i aç"
+  (click_on), bir sitede ürünü sepete ekleme (ödeme onayında durmalı), iyzico sandbox API anahtarını test projesinin .env'ine alma.
+  Gemini model adını `/models` listesinden doğrula.
 
 ## Testler
 | Test | Durum |
@@ -21,6 +25,10 @@
 | CachyOS / Mint SSH | ⏳ setup.sh bekleniyor |
 | Gemini CLI bayrakları (`-p`) | ⏳ CachyOS'ta `--help` ile doğrulanacak |
 | Çift alkış gerçek mikrofonda | ⏳ (varsayılan kapalı) |
+| Edge TTS (Emel) hoparlörde, ilk ses ~1,5 sn | ✅ |
+| Tarayıcı numaralı öğeler + kasadan şifre + select (yerel sayfa) | ✅ |
+| Ödeme/kart/hesap kapısı, click_on, save_secret→.env (pytest, 49) | ✅ |
+| click_on gerçek ekranda / gerçek sitede alışveriş ve API anahtarı | ⏳ GEMINI_API_KEY bekleniyor |
 
 ## Bilinen sorunlar
 - Türkçe uyandırma kelimesi yok; "hey jarvis" (İngilizce model) kullanılıyor.

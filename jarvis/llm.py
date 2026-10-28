@@ -132,6 +132,7 @@ class OpenAICompat:
         self.is_cloud = not self.base.startswith(("http://127.0.0.1", "http://localhost"))
         self.timeout = cfg.get("timeout_s", 60)
         self.extra = cfg.get("extra") or {}
+        self.sees = bool(cfg.get("vision"))
         self.last_model, self.last_tokens = self.model, None
 
     def available(self) -> bool:
@@ -156,6 +157,15 @@ class OpenAICompat:
 
     def chat(self, messages, max_tokens=400) -> str:
         m = self._post({"messages": messages, "max_tokens": max_tokens, "temperature": 0.4})
+        return THINK.sub("", m.get("content") or "").strip()
+
+    def vision(self, question, image_path, max_tokens=400) -> str:
+        if not self.sees:
+            raise LLMError(f"{self.name}: görme yok", 400)
+        img = base64.b64encode(open(image_path, "rb").read()).decode()
+        m = self._post({"max_tokens": max_tokens, "temperature": 0, "messages": [{"role": "user", "content": [
+            {"type": "text", "text": question},
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img}"}}]}]})
         return THINK.sub("", m.get("content") or "").strip()
 
     def chat_tools(self, messages, tools, model=None, max_tokens=1200) -> Reply:

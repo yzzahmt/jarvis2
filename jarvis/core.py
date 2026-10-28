@@ -208,9 +208,12 @@ class Jarvis:
             return "Henüz görev yok."
         return " ".join(f"{t['request'][:40]} — {t['status']}." for t in ts)
 
-    CHAT_SYSTEM = ("Sen JARVIS'sin: çok zeki, esprili ama saygılı, Türkçe konuşan kişisel asistan. Cevapların sesli okunur: "
-                   "markdown, liste, emoji kullanma; 1-3 kısa cümle yaz, kullanıcı ayrıntı isterse uzat. "
-                   "Emin olmadığın güncel bilgiyi uydurma, bilmediğini söyle. Bugün: {date}.")
+    CHAT_SYSTEM = ("Sen JARVIS'sin: kullanıcının yakın, zeki ve esprili kişisel asistanısın. Türkçeyi doğal, akıcı ve "
+                   "konuşma dilinde kullan; çeviri gibi değil, İstanbul Türkçesiyle sohbet eden biri gibi. Kısa, net, "
+                   "anlaşılır cümleler kur; dolambaçlı ve resmi kalıplardan kaçın. Fikir istenirse gerçekten düşün, "
+                   "somut öneri ve gerekçe ver, gerekirse karşı çık. Cevapların sesli okunur: markdown, liste, emoji "
+                   "kullanma; genelde 1-3 cümle, kullanıcı ayrıntı isterse uzat. Güncel bilgiden emin değilsen uydurma, "
+                   "bilmediğini söyle. Bugün: {date}.")
 
     def do_chat(self, i):
         text = i.args.get("text", "")
@@ -351,8 +354,17 @@ class Jarvis:
             if self.on_progress:
                 self.on_progress(name, args)
         return agent_loop.Ctx(db=self.db, agents=self.agents, machines=self.machines, coder=self.coder,
-                              budget=budget, browser=self._web, vision=lambda q, f: self.llm.vision(q, f),
+                              budget=budget, browser=self._web, vision=self._vision,
                               ask=self.ask, progress=progress, stop=self.tm.stop_flags.get(tid))
+
+    def _vision(self, question, image):
+        """Ekranı görme: bulutta görebilen beyin (Gemini) varsa o, yoksa yerel görsel model."""
+        if self.brains and self.brains.can_see():
+            try:
+                return self.brains.vision(question, image)
+            except LLMError:
+                pass
+        return self.llm.vision(question, image)
 
     def _agent_llm(self):
         """Çoklu beyin (ücretsiz bulut sırası + yerel yedek); bulut bütçesi 0 ise yalnızca yerel model."""

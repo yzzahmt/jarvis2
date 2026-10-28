@@ -217,13 +217,76 @@ def t_keys(ctx, keys):
     return "basıldı"
 
 
-@tool("click", "Ekranda koordinata tıklar (look_screen ile konum bulduktan sonra).", info=False, x=I("x"), y=I("y"))
-def t_click(ctx, x, y):
+def _mouse_click(x, y, button="left", count=1):
     from pynput.mouse import Button, Controller
     m = Controller()
     m.position = (int(x), int(y))
-    m.click(Button.left)
+    time.sleep(0.05)
+    m.click({"right": Button.right}.get(button, Button.left), 2 if count == 2 or button == "double" else 1)
+
+
+@tool("click", "Ekranda koordinata tıklar (nokta cinsinden). Genelde click_on daha güvenilirdir.", info=False,
+      x=I("x"), y=I("y"), button=S("left|right|double", optional=True))
+def t_click(ctx, x, y, button="left"):
+    _mouse_click(x, y, button)
     return "tıklandı"
+
+
+def _screen_size():
+    r = subprocess.run(["osascript", "-e", 'tell application "Finder" to get bounds of window of desktop'],
+                       capture_output=True, text=True, timeout=10)
+    nums = [int(n) for n in re.findall(r"-?\d+", r.stdout)]
+    return (nums[2], nums[3]) if len(nums) == 4 else (1512, 982)
+
+
+BOX_Q = ('Bu ekran görüntüsünde şu öğeyi bul: "{t}". YALNIZCA JSON döndür: {{"box_2d": [ymin, xmin, ymax, xmax]}} '
+         '(0-1000 arası normalize). Öğe yoksa {{"box_2d": null, "neden": "kısa açıklama"}}.')
+
+
+@tool("click_on", "Mac ekranında TARİF EDİLEN öğeyi görerek bulur ve tıklar (herhangi bir uygulamada: buton, simge, menü, "
+      "metin kutusu). Ör. target='Finder kenar çubuğunda İndirilenler', 'Spotify'da oynat butonu'. "
+      "Tarayıcı sayfalarında browser aracını tercih et.", info=False,
+      target=S("öğenin açık tarifi"), button=S("left|right|double", optional=True))
+def t_click_on(ctx, target, button="left"):
+    f = config.path("data/tmp/screen.png")
+    f.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["screencapture", "-x", "-m", "-t", "png", str(f)], timeout=10)   # -m: ana ekran
+    if not f.exists():
+        return "ekran görüntüsü alınamadı (Sistem Ayarları > Gizlilik > Ekran Kaydı izni gerekli)"
+    subprocess.run(["sips", "-Z", "1600", str(f)], capture_output=True)
+    try:
+        out = ctx.vision(BOX_Q.format(t=target), f)
+    finally:
+        f.unlink(missing_ok=True)
+    m = re.search(r"\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]", out or "")
+    if not m:
+        return f"bulunamadı: {clip(out or 'görsel model yanıt vermedi', 200)}"
+    y0, x0, y1, x1 = (int(v) for v in m.groups())
+    w, h = _screen_size()
+    x, y = (x0 + x1) / 2000 * w, (y0 + y1) / 2000 * h
+    _mouse_click(x, y, button)
+    time.sleep(0.4)
+    return f"'{target}' tıklandı ({int(x)},{int(y)}). Sonucu doğrulamak için gerekirse look_screen."
+
+
+@tool("mouse", "Fare: scroll (amount: + aşağı, - yukarı), move(x,y), drag(x,y → to_x,to_y).", info=False,
+      action=S("scroll|move|drag"), amount=I("kaydırma adımı", optional=True), x=I("x", optional=True),
+      y=I("y", optional=True), to_x=I("hedef x", optional=True), to_y=I("hedef y", optional=True))
+def t_mouse(ctx, action, amount=5, x=None, y=None, to_x=None, to_y=None):
+    from pynput.mouse import Button, Controller
+    m = Controller()
+    if x is not None and y is not None:
+        m.position = (int(x), int(y))
+    if action == "scroll":
+        m.scroll(0, -int(amount))
+    elif action == "drag" and to_x is not None and to_y is not None:
+        m.press(Button.left)
+        for i in range(1, 11):
+            sx, sy = m.position
+            m.position = (sx + (int(to_x) - sx) / (11 - i), sy + (int(to_y) - sy) / (11 - i))
+            time.sleep(0.03)
+        m.release(Button.left)
+    return "tamam"
 
 
 # ---------------- web ----------------
@@ -254,13 +317,58 @@ def t_fetch(ctx, url):
 
 
 # ---------------- tarayıcı (görünür, oturum korunur) ----------------
-@tool("browser", "Görünür tarayıcıyı kontrol eder. action: goto(url) | read | click(text) | fill(label,text) | press(key) | youtube(query).",
-      risk=lambda a: a.get("action") == "fill" and bool(re.search(r"(şifre|parola|password|kart|card)", a.get("label", ""), re.I)),
-      action=S("goto|read|click|fill|press|youtube"), url=S("adres", optional=True),
-      text=S("tıklanacak metin veya yazılacak değer", optional=True), label=S("alan etiketi/placeholder", optional=True),
-      key=S("tuş, ör. Enter", optional=True), query=S("YouTube araması", optional=True))
+CARD = re.compile(r"(kart|card|cvv|cvc|iban)", re.I)
+GO_ON = re.compile(r"(onayla|tamamla|devam|gönder|ilerle|continue|confirm|submit|next)", re.I)
+
+
+def _env_risk(a):
+    f = a.get("env_file")
+    return bool(f) and not any(str(_p(f)).startswith(str(_p(d))) for d in ctx_allowed())
+
+
+def _browser_guard(ctx, action, a) -> str | None:
+    """Ödeme / hesap açma / kart bilgisi KODDA denetlenir (model atlayamaz). Onay yoksa ret metni döner."""
+    from ..automation.session import ACCOUNT, PAY
+    s = ctx.browser()
+    q = None
+    if action in ("type", "fill") and CARD.search(f"{a.get('label', '')} {s.label(a.get('id'))}"):
+        return "REDDEDİLDİ: kart bilgisini Jarvis yazmaz. Sitedeki kayıtlı kartı seç ya da kullanıcı kendisi girsin."
+    if action in ("click", "press") or (action in ("type", "fill") and a.get("key")):
+        lbl = s.label(a.get("id"), a.get("text")) if action == "click" else a.get("key", "Enter")
+        checkout, money = s.checkout_info()
+        if PAY.search(lbl) or (checkout and (action != "click" or GO_ON.search(lbl))):
+            q = f"Ödeme adımı: '{lbl[:40]}'" + (f". Sayfadaki tutarlar: {money}" if money else "") + ". Onaylıyor musun?"
+        elif action == "click" and ACCOUNT.search(lbl):
+            q = f"Yeni hesap oluşturulacak ('{lbl[:40]}'). Onaylıyor musun?"
+    if q and not re.match(r"^\s*(evet|e|onay|onaylıyorum|tamam|olur|yap|yes|y)\b", (ctx.ask(q) or "").lower()):
+        return "KULLANICI REDDETTİ — bu adımı yapma; kullanıcıya durumu söyle."
+    return None
+
+
+@tool("browser", "Görünür tarayıcı (oturumlar kalıcı). Sayfa numaralı öğe listesi olarak gelir; öğeyi id ile kullan. "
+      "action: goto(url) | look (öğeleri yenile) | read (uzun metin) | click(id veya text) | type(id,text[,key=Enter]) | "
+      "select(id,option) | scroll(direction=up|down) | back | tabs([index]) | wait(text=saniye) | press(key) | "
+      "fill_secret(id,secret): kasadaki şifre/e-postayı alana yazar, değeri görmezsin, ad biçimi 'site.com:email', 'site.com:sifre' | "
+      "save_secret(id veya source=clipboard, secret ve/veya env_file+var): API anahtarını sayfadan/panodan alıp kasaya ve/veya "
+      "projenin .env dosyasına doğrudan yazar | youtube(query). Ödeme ve hesap açma adımlarında sistem kullanıcıya kendisi sorar.",
+      risk=_env_risk, info=True,
+      action=S("goto|look|read|click|type|select|scroll|back|tabs|wait|press|fill_secret|save_secret|youtube"),
+      url=S("adres", optional=True), id=I("öğe numarası", optional=True),
+      text=S("yazılacak metin / tıklanacak görünen metin", optional=True), label=S("alan etiketi (id yoksa)", optional=True),
+      key=S("tuş, ör. Enter", optional=True), option=S("seçenek metni", optional=True),
+      direction=S("up|down", optional=True), index=I("sekme sırası", optional=True),
+      secret=S("kasa adı, ör. trendyol.com:sifre veya iyzico:api_key", optional=True),
+      source=S("save_secret için: clipboard (Kopyala butonundan sonra)", optional=True),
+      env_file=S(".env dosya yolu, ör. ~/projeler/magaza/.env", optional=True),
+      var=S("değişken adı, ör. IYZICO_API_KEY", optional=True), query=S("YouTube araması", optional=True))
 def t_browser(ctx, action, **a):
-    return ctx.browser().do(action, **a)
+    denied = _browser_guard(ctx, action, a)
+    if denied:
+        return denied
+    try:
+        return ctx.browser().do(action, **a)
+    except LookupError as e:
+        return str(e)
 
 
 # ---------------- başka yapay zekâya devretme ----------------

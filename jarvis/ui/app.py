@@ -201,8 +201,7 @@ class App:
             if not hasattr(self, "tts"):
                 from ..voice.text_to_speech import TTS
                 v = self.s.get("voice", {})
-                self.tts = TTS(v.get("tts", "piper"), config.path(f"data/tts/{v.get('piper_voice')}.onnx"),
-                               v.get("say_voice", "Yelda"), config.path("data/tmp"))
+                self.tts = TTS.from_settings(v, config.path("data"))
             self.state("speaking")
             self.tts.speak(text)
         except Exception:
