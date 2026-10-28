@@ -120,3 +120,6 @@ JARVIS.app'e konuşma tanıma izni + yeniden imza (scripts/app_izinleri.sh); Mac
 
 ## 022 (29.10.2026)
 Ses seçimi belirgin + tıklayınca önizleme, tek önizleme motoru, çökme kaydı (crash.log), uygulama simgesi paket içinde. Ayrıntı: yenilikler/022.
+
+## 023 (29.10.2026)
+Groq'a 2 model daha, 6 ücretsiz sağlayıcı anahtar bekliyor, scripts/beyin_kontrol.py; ses Emel'e alındı, yabancı aksanlı sesler etiketlendi. Ayrıntı: yenilikler/023.

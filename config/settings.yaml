@@ -43,7 +43,7 @@ voice:
   stt_model: large-v3-turbo   # yerel yedek; yalnızca gerekince yüklenir (small Türkçede zayıftı)
   words: [Vivaldi, OBİS]      # sık söylediğin özel adlar (okul, site, uygulama); ses tanıma bunları öncelikli duyar
   tts: edge               # edge (doğal sinir ağı sesi, internet) | piper (yerel) | say; edge yoksa otomatik piper
-  edge_voice: en-US-AvaMultilingualNeural   # arayüz > dişli > Ses ile değişir (Ava, Andrew, Emma, Brian, Emel)
+  edge_voice: tr-TR-EmelNeural   # arayüz > dişli > Ses ile değişir (Ava, Andrew, Emma, Brian, Emel)
   edge_rate: "+10%"         # biraz hızlı = daha akıcı, daha az bekleme
   edge_pitch: "+0Hz"
   piper_voice: tr_TR-dfki-medium
@@ -70,7 +70,14 @@ brains:
   - {name: gemini-lite-2, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-flash-lite-latest, api_key_env: GEMINI_API_KEY_2, vision: true}
   - {name: gemini-yedek-2, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-flash-latest, api_key_env: GEMINI_API_KEY_2, vision: true}
   - {name: groq, base_url: "https://api.groq.com/openai/v1", model: openai/gpt-oss-120b, api_key_env: GROQ_API_KEY}   # llama-3.3-70b kaldırıldı
-  - {name: cerebras, base_url: "https://api.cerebras.ai/v1", model: llama-3.3-70b, api_key_env: CEREBRAS_API_KEY}
+  - {name: groq-2, base_url: "https://api.groq.com/openai/v1", model: openai/gpt-oss-20b, api_key_env: GROQ_API_KEY}   # Groq'ta her model ayrı kota
+  - {name: groq-3, base_url: "https://api.groq.com/openai/v1", model: qwen/qwen3.8-27b, api_key_env: GROQ_API_KEY}
+  # Aşağıdakiler anahtar gelince devreye girer (yoksa atlanır). Model adını doğrula: python scripts/beyin_kontrol.py
+  - {name: cerebras, base_url: "https://api.cerebras.ai/v1", model: gpt-oss-120b, api_key_env: CEREBRAS_API_KEY}
+  - {name: mistral, base_url: "https://api.mistral.ai/v1", model: mistral-small-latest, api_key_env: MISTRAL_API_KEY}
+  - {name: github, base_url: "https://models.github.ai/inference", model: openai/gpt-4.1-mini, api_key_env: GITHUB_MODELS_TOKEN}
+  - {name: sambanova, base_url: "https://api.sambanova.ai/v1", model: Meta-Llama-3.3-70B-Instruct, api_key_env: SAMBANOVA_API_KEY}
+  - {name: nvidia, base_url: "https://integrate.api.nvidia.com/v1", model: meta/llama-3.3-70b-instruct, api_key_env: NVIDIA_API_KEY}
   - {name: openrouter, base_url: "https://openrouter.ai/api/v1", model: "deepseek/deepseek-chat-v3-0324:free", api_key_env: OPENROUTER_API_KEY}
   - {name: yerel, base_url: "http://127.0.0.1:11434/v1", model: qwen3:4b, timeout_s: 180, extra: {reasoning_effort: none}}
 

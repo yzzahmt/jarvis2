@@ -244,11 +244,13 @@ class App:
         return {"machines": self.machines(), "voice": self.voice_msg, "speak": self.speak,
                 "hotkey": self.s.get("voice", {}).get("hotkey", "<cmd>+<shift>+j").replace("<", "").replace(">", "")}
 
-    VOICES = [("en-US-AvaMultilingualNeural", "Ava", "sıcak, kadın"),
-              ("en-US-AndrewMultilingualNeural", "Andrew", "sakin, erkek"),
-              ("en-US-EmmaMultilingualNeural", "Emma", "neşeli, kadın"),
-              ("en-US-BrianMultilingualNeural", "Brian", "rahat, erkek"),
-              ("tr-TR-EmelNeural", "Emel", "yerli, kadın")]
+    # Emel tek doğal Türkçe ses (tr-TR-AhmetNeural Edge'de ses üretmiyor, 29.10). Diğerleri çok dilli İngilizce
+    # sesler: Türkçeyi yabancı aksanla okur (kullanıcı: "neden Fransız aksanıyla konuşuyor").
+    VOICES = [("tr-TR-EmelNeural", "Emel", "Türkçe, doğal · kadın"),
+              ("en-US-AvaMultilingualNeural", "Ava", "yabancı aksanlı · kadın"),
+              ("en-US-AndrewMultilingualNeural", "Andrew", "yabancı aksanlı · erkek"),
+              ("en-US-EmmaMultilingualNeural", "Emma", "yabancı aksanlı · kadın"),
+              ("en-US-BrianMultilingualNeural", "Brian", "yabancı aksanlı · erkek")]
 
     def settings(self):
         b = self.j.brains
