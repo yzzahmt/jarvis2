@@ -41,7 +41,16 @@ body {
   position: absolute; inset: 0; border-radius: 22px; overflow: hidden;
   background: var(--glass); border: 0.5px solid var(--line);
   display: flex; flex-direction: column;
+  box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
 }
+.shell::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(160deg, rgba(100,210,255,.55), rgba(94,92,230,.15) 35%, transparent 60%, rgba(191,90,242,.35));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: .5; transition: opacity .6s; }
+body[data-state="listening"] .shell::before, body[data-state="speaking"] .shell::before { opacity: 1; }
+.shell::after { content: ""; position: absolute; left: 50%; top: -120px; width: 360px; height: 260px; transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(94,92,230,.22), transparent); pointer-events: none; transition: opacity .6s; opacity: .6; }
+body[data-state="sleep"] .shell::after { opacity: .15; }
 
 /* başlık */
 header { height: 44px; display: flex; align-items: center; padding: 0 14px; gap: 8px; flex-shrink: 0; }
@@ -49,7 +58,8 @@ header { height: 44px; display: flex; align-items: center; padding: 0 14px; gap:
 .lights button { width: 12px; height: 12px; border-radius: 50%; border: 0; cursor: default; opacity: .9; }
 .lights .c { background: #ff5f57; } .lights .m { background: #febc2e; }
 .lights:hover button { opacity: 1; }
-.brand { flex: 1; text-align: center; font-size: 12px; font-weight: 600; letter-spacing: .32em; color: var(--dim); margin-left: 32px; }
+.brand { flex: 1; text-align: center; font-size: 12px; font-weight: 700; letter-spacing: .34em; margin-left: 32px;
+  background: linear-gradient(90deg, #64d2ff, #5e5ce6 50%, #bf5af2); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .icon-btn { width: 28px; height: 28px; border-radius: 8px; border: 0; background: transparent; color: var(--dim);
   display: grid; place-items: center; cursor: default; }
 .icon-btn:hover { background: var(--field); color: var(--text); }
@@ -81,7 +91,14 @@ body[data-state="speaking"] .orb { animation: talk .7s ease-in-out infinite; }
 body.compact .orb { width: 72px; height: 72px; }
 body.compact .hero { padding: 0 0 6px; }
 
-.status { margin-top: 10px; font-size: 13px; color: var(--dim); height: 18px; transition: opacity .3s; }
+.status { margin-top: 10px; font-size: 13px; color: var(--dim); height: 18px; transition: opacity .3s;
+  display: flex; align-items: center; gap: 8px; }
+.wave { display: none; gap: 2px; align-items: center; height: 14px; }
+.wave s { width: 3px; height: 4px; border-radius: 2px; background: linear-gradient(#64d2ff, #bf5af2); animation: wv .9s ease-in-out infinite; }
+.wave s:nth-child(2) { animation-delay: -.7s } .wave s:nth-child(3) { animation-delay: -.45s }
+.wave s:nth-child(4) { animation-delay: -.2s } .wave s:nth-child(5) { animation-delay: -.55s }
+body[data-state="listening"] .wave, body[data-state="speaking"] .wave { display: inline-flex; }
+@keyframes wv { 0%,100% { height: 3px } 50% { height: 14px } }
 .machines { display: flex; gap: 6px; margin-top: 12px; }
 .chip { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); padding: 4px 10px;
   border-radius: 999px; background: var(--field); }
@@ -98,7 +115,15 @@ body.compact .hero { padding: 0 0 6px; }
 .empty b { color: var(--dim); font-weight: 500; }
 .m { max-width: 88%; animation: rise .35s cubic-bezier(.2,.8,.2,1); user-select: text; -webkit-user-select: text; }
 .m.user { align-self: flex-end; background: var(--accent); color: #fff; padding: 7px 12px; border-radius: 16px 16px 4px 16px; }
-.m.jarvis { align-self: flex-start; font-size: 15px; }
+.m.jarvis { align-self: flex-start; font-size: 15px; display: flex; gap: 10px; align-items: flex-start; position: relative; max-width: 94%; }
+.m.jarvis .av { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+  background: radial-gradient(circle at 35% 30%, #fff 0, rgba(255,255,255,.2) 25%, transparent 45%),
+              conic-gradient(from 200deg, #64d2ff, #5e5ce6, #bf5af2, #64d2ff); box-shadow: 0 2px 8px rgba(94,92,230,.35); }
+.m.jarvis .tx { background: var(--card); padding: 8px 12px; border-radius: 4px 16px 16px 16px; border: .5px solid var(--line); }
+.m.jarvis .cp { position: absolute; right: -30px; top: 4px; width: 24px; height: 24px; border: 0; border-radius: 7px; background: var(--field);
+  color: var(--dim); display: grid; place-items: center; opacity: 0; transition: opacity .2s; cursor: default; }
+.m.jarvis:hover .cp { opacity: 1; } .m.jarvis .cp svg { width: 12px; height: 12px; }
+.m.user { box-shadow: 0 4px 14px rgba(10,132,255,.25); }
 .m.interim { align-self: flex-start; color: var(--dim); font-size: 13px; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
 
@@ -127,7 +152,9 @@ body.compact .hero { padding: 0 0 6px; }
 
 /* giriş */
 .composer { padding: 10px 14px 14px; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-.field { flex: 1; display: flex; align-items: center; background: var(--field); border-radius: 999px; height: 40px; padding: 0 6px 0 16px; }
+.field { flex: 1; display: flex; align-items: center; background: var(--field); border-radius: 999px; height: 42px; padding: 0 6px 0 16px;
+  border: .5px solid var(--line); transition: box-shadow .25s, background .25s; }
+.field:focus-within { background: var(--card); box-shadow: 0 0 0 3px rgba(94,92,230,.18), 0 6px 20px rgba(94,92,230,.12); }
 .field input { flex: 1; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 14px; }
 .field input::placeholder { color: var(--faint); }
 .send { width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; display: grid; place-items: center;
@@ -202,7 +229,7 @@ body.settings .sheet { transform: none; }
   <header class="pywebview-drag-region">
     <div class="lights">
       <button class="c" title="Kapat" onclick="api('quit')"></button>
-      <button class="m" title="Küçült" onclick="api('minimize')"></button>
+      <button class="m" title="Alt çubuğa küçült" onclick="api('minimize')"></button>
     </div>
     <div class="brand pywebview-drag-region">JARVIS</div>
     <button class="icon-btn" id="spk" title="Yanıtları sesli oku" onclick="toggleSpeak()"></button>
@@ -224,12 +251,12 @@ body.settings .sheet { transform: none; }
 
   <section class="hero pywebview-drag-region">
     <div class="orb"><div class="b b1"></div><div class="b b2"></div><div class="b b3"></div><div class="b b4"></div><div class="core"></div></div>
-    <div class="status" id="status">Hazır</div>
+    <div class="status"><span class="wave"><s></s><s></s><s></s><s></s><s></s></span><span id="status">Hazır</span></div>
     <div class="machines" id="machines"></div>
   </section>
 
   <main class="feed" id="feed">
-    <div class="empty" id="empty">Bir şey söyle ya da yaz.
+    <div class="empty" id="empty"><b id="greet">Merhaba</b><br>Bir şey söyle ya da yaz.
       <div class="sugs">
         <button class="sug">İndirilenlerde kaç PDF var?</button>
         <button class="sug">Trendyol'da en ucuz orijinal EarPods'u bul</button>
@@ -271,6 +298,13 @@ function api(name, ...a) { return window.pywebview && window.pywebview.api[name]
 function scroll() { feed.scrollTo({ top: feed.scrollHeight, behavior: "smooth" }); }
 function add(el) { $("empty")?.remove(); document.body.classList.remove("settings"); feed.appendChild(el); scroll(); document.body.classList.toggle("compact", feed.children.length > 3); return el; }
 function el(cls, text) { const d = document.createElement("div"); d.className = cls; if (text != null) d.textContent = text; return d; }
+const COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+function jmsg(text) {
+  const m = el("m jarvis"), cp = document.createElement("button");
+  cp.className = "cp"; cp.title = "Kopyala"; cp.innerHTML = COPY;
+  cp.onclick = () => { navigator.clipboard?.writeText(text); cp.innerHTML = "✓"; setTimeout(() => cp.innerHTML = COPY, 1200); };
+  m.append(el("av"), el("tx", text), cp); return m;
+}
 function setState(s) { document.body.dataset.state = s; $("status").textContent = statusText && s === "thinking" ? statusText : (STATUS[s] || ""); }
 
 function machines(list) {
@@ -290,7 +324,7 @@ window.jarvis = {
     else if (type === "msg") {
       if (d.role === "user") add(el("m user", d.text));
       else if (d.role === "jarvis-interim") add(el("m interim", d.text));
-      else add(el("m jarvis", d.text));
+      else add(jmsg(d.text));
     }
     else if (type === "task_start") {
       const t = add(el("task"));
@@ -394,6 +428,7 @@ window.addEventListener("pywebviewready", async () => {
   const st = await api("settings"); banner(!st.gemini);
 });
 $("spk").innerHTML = SPK_ON;
+{ const h = new Date().getHours(); $("greet").textContent = h < 6 ? "İyi geceler" : h < 12 ? "Günaydın" : h < 18 ? "İyi günler" : "İyi akşamlar"; }
 </script>
 </body>
 </html>

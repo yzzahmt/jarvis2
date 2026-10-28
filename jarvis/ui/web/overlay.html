@@ -4,51 +4,126 @@
 <meta charset="utf-8">
 <title>JARVIS çubuk</title>
 <style>
-:root { --bg: rgba(250, 250, 252, 0.82); --text: #1d1d1f; --dim: #6e6e73; --line: rgba(0,0,0,.08); --ok: #30d158; --bad: #ff453a; }
-@media (prefers-color-scheme: dark) { :root { --bg: rgba(30, 30, 32, 0.82); --text: #f5f5f7; --dim: #a1a1a6; --line: rgba(255,255,255,.1); } }
+:root {
+  --bg: rgba(252, 252, 254, 0.78); --text: #1d1d1f; --dim: #6e6e73; --line: rgba(0,0,0,.07);
+  --btn: rgba(0,0,0,.05); --btn-h: rgba(0,0,0,.09); --ok: #30d158; --bad: #ff453a;
+  --glow: 0 10px 34px rgba(30, 20, 80, .22), 0 1px 0 rgba(255,255,255,.7) inset;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: rgba(24, 24, 28, 0.78); --text: #f5f5f7; --dim: #a1a1a6; --line: rgba(255,255,255,.09);
+    --btn: rgba(255,255,255,.07); --btn-h: rgba(255,255,255,.13);
+    --glow: 0 12px 40px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.06) inset; }
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: transparent; overflow: hidden; }
 body { font: 13px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; color: var(--text);
   -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; display: grid; place-items: center; }
-.pill { width: calc(100% - 16px); height: calc(100% - 16px); border-radius: 999px; background: var(--bg);
-  -webkit-backdrop-filter: blur(30px) saturate(1.8); backdrop-filter: blur(30px) saturate(1.8);
-  border: .5px solid var(--line); box-shadow: 0 8px 28px rgba(0,0,0,.22);
-  display: flex; align-items: center; gap: 12px; padding: 0 20px 0 12px; position: relative; overflow: hidden;
-  animation: in .45s cubic-bezier(.2,.9,.2,1.1); }
-@keyframes in { from { transform: translateY(16px) scale(.96); opacity: 0 } to { transform: none; opacity: 1 } }
-.orb { position: relative; width: 38px; height: 38px; flex-shrink: 0; }
-.orb i { position: absolute; inset: 0; border-radius: 50%; filter: blur(5px); animation: spin 3s linear infinite; }
+
+/* cam kapsül + dönen ışık çerçevesi */
+.pill { position: relative; width: calc(100% - 20px); height: calc(100% - 20px); border-radius: 999px; padding: 1px;
+  background: var(--line); box-shadow: var(--glow); animation: in .5s cubic-bezier(.2,.9,.2,1.1); overflow: hidden; }
+.pill::before { content: ""; position: absolute; inset: -60%; opacity: 0; transition: opacity .5s;
+  background: conic-gradient(from 0deg, transparent 0 55%, #64d2ff 65%, #5e5ce6 75%, #bf5af2 85%, transparent 95%);
+  animation: rot 3.2s linear infinite; }
+body[data-state="listening"] .pill::before, body[data-state="speaking"] .pill::before,
+body[data-state="thinking"] .pill::before, body.busy .pill::before { opacity: 1; }
+body[data-state="thinking"] .pill::before, body.busy .pill::before { animation-duration: 1.4s; }
+.in { position: relative; height: 100%; border-radius: 999px; background: var(--bg);
+  -webkit-backdrop-filter: blur(34px) saturate(1.9); backdrop-filter: blur(34px) saturate(1.9);
+  display: flex; align-items: center; gap: 12px; padding: 0 10px; }
+@keyframes in { from { transform: translateY(18px) scale(.95); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes rot { to { transform: rotate(360deg) } }
+
+/* küre */
+.orb { position: relative; width: 44px; height: 44px; flex-shrink: 0; transition: transform .5s cubic-bezier(.2,.8,.2,1); }
+.orb i { position: absolute; inset: 2px; border-radius: 50%; filter: blur(6px); animation: spin 6s linear infinite; }
 .orb i:nth-child(1) { background: radial-gradient(circle at 30% 30%, #64d2ff, transparent 65%); }
-.orb i:nth-child(2) { background: radial-gradient(circle at 70% 45%, #5e5ce6, transparent 62%); animation-duration: 4s; animation-direction: reverse; }
-.orb i:nth-child(3) { background: radial-gradient(circle at 45% 75%, #bf5af2, transparent 62%); animation-duration: 5s; }
+.orb i:nth-child(2) { background: radial-gradient(circle at 70% 45%, #5e5ce6, transparent 62%); animation-duration: 8s; animation-direction: reverse; }
+.orb i:nth-child(3) { background: radial-gradient(circle at 45% 75%, #bf5af2, transparent 62%); animation-duration: 10s; }
+.orb b { position: absolute; inset: 30%; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff, rgba(255,255,255,.2) 55%, transparent 72%);
+  filter: blur(3px); opacity: .6; animation: breathe 4s ease-in-out infinite; }
+body[data-state="sleep"] .orb { transform: scale(.82); filter: saturate(.3); opacity: .75; }
+body[data-state="listening"] .orb { animation: pulse 1.4s ease-in-out infinite; }
+body[data-state="thinking"] .orb i, body.busy .orb i { animation-duration: 1.6s; }
+body[data-state="speaking"] .orb { animation: talk .7s ease-in-out infinite; }
 body.end .orb i { animation-duration: 14s; }
 @keyframes spin { to { transform: rotate(360deg) } }
+@keyframes breathe { 0%,100% { transform: scale(.92); opacity: .45 } 50% { transform: scale(1.06); opacity: .75 } }
+@keyframes pulse { 0%,100% { transform: scale(1) } 50% { transform: scale(1.1) } }
+@keyframes talk { 0%,100% { transform: scale(1) } 30% { transform: scale(1.07) } 65% { transform: scale(.96) } }
+
+/* metin */
 .txt { min-width: 0; flex: 1; }
-.title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sub { color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .3s; }
+.title { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  color: var(--dim); text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+.title span:first-child { overflow: hidden; text-overflow: ellipsis; }
+.sub { margin-top: 2px; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .3s; }
 body.ok .sub { color: var(--ok); } body.fail .sub { color: var(--bad); }
-.bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 40%;
+.wave { display: none; gap: 2px; align-items: center; height: 12px; }
+.wave s { width: 2.5px; height: 4px; border-radius: 2px; background: linear-gradient(#64d2ff, #bf5af2); animation: w .9s ease-in-out infinite; }
+.wave s:nth-child(2) { animation-delay: -.7s } .wave s:nth-child(3) { animation-delay: -.45s }
+.wave s:nth-child(4) { animation-delay: -.2s } .wave s:nth-child(5) { animation-delay: -.55s }
+body[data-state="listening"] .wave, body[data-state="speaking"] .wave { display: inline-flex; }
+@keyframes w { 0%,100% { height: 3px } 50% { height: 12px } }
+
+/* düğmeler (yalnız dock modunda) */
+.btns { display: none; gap: 6px; align-items: center; }
+body.dock .btns { display: flex; }
+.b { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: default;
+  background: var(--btn); color: var(--text); transition: background .2s, transform .15s; }
+.b:hover { background: var(--btn-h); } .b:active { transform: scale(.9); }
+.b svg { width: 16px; height: 16px; }
+.b.mic { background: linear-gradient(135deg, #64d2ff, #5e5ce6 55%, #bf5af2); color: #fff; box-shadow: 0 4px 14px rgba(94,92,230,.35); }
+body[data-state="listening"] .b.mic { animation: pulse 1.2s ease-in-out infinite; }
+.b.stop { color: var(--bad); display: none; } body.busy .b.stop { display: grid; }
+.b.x { width: 24px; height: 24px; background: transparent; color: var(--dim); }
+.b.x svg { width: 12px; height: 12px; }
+
+.bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 40%; display: none;
   background: linear-gradient(90deg, transparent, #5e5ce6, #bf5af2, transparent); animation: slide 1.6s ease-in-out infinite; }
-body.end .bar { display: none; }
+body.busy .bar { display: block; }
 @keyframes slide { from { transform: translateX(-100%) } to { transform: translateX(260%) } }
 </style>
 </head>
-<body>
-<div class="pill">
-  <div class="orb"><i></i><i></i><i></i></div>
-  <div class="txt"><div class="title" id="title">JARVIS</div><div class="sub" id="sub"></div></div>
+<body data-state="idle">
+<div class="pill"><div class="in">
+  <div class="orb"><i></i><i></i><i></i><b></b></div>
+  <div class="txt">
+    <div class="title"><span id="title">JARVIS</span><span class="wave"><s></s><s></s><s></s><s></s><s></s></span></div>
+    <div class="sub" id="sub"></div>
+  </div>
+  <div class="btns">
+    <button class="b stop" title="Durdur" onclick="api('stop')"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg></button>
+    <button class="b mic" title="Dinle" onclick="api('mic')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+    <button class="b" title="Büyüt" onclick="api('expand')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+    <button class="b x" title="Gizle (kısayol geri getirir)" onclick="api('close')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
   <div class="bar"></div>
-</div>
+</div></div>
 <script>
-const $ = id => document.getElementById(id);
+const $ = id => document.getElementById(id), B = document.body;
+const LABEL = { idle: "Jarvis", sleep: "Uykuda", listening: "Dinliyorum", thinking: "Düşünüyorum", speaking: "Konuşuyor" };
+const HINT = { idle: "Bir şey söyle ya da mikrofona dokun", sleep: "“Hey Jarvis” de ya da alkışla", listening: "Seni dinliyorum…" };
+let state = "idle", last = "";
+function api(n) { return window.pywebview && window.pywebview.api[n](); }
+function replay() { const p = document.querySelector(".pill"); p.style.animation = "none"; p.offsetHeight; p.style.animation = ""; }
+function idleView() {
+  B.classList.remove("busy", "end", "ok", "fail");
+  $("title").textContent = LABEL[state] || "Jarvis";
+  $("sub").textContent = state === "listening" || !last ? (HINT[state] || last) : last;
+}
 window.bar = {
   on(m) {
-    const b = document.body;
-    if (m.t === "show") {
-      b.className = ""; $("title").textContent = m.title || "JARVIS"; $("sub").textContent = m.text || "";
-      const p = document.querySelector(".pill"); p.style.animation = "none"; p.offsetHeight; p.style.animation = "";
-    } else if (m.t === "step") { $("sub").textContent = m.text; }
-    else if (m.t === "done") { b.className = "end " + (m.ok ? "ok" : "fail"); $("sub").textContent = (m.ok ? "✓ " : "✕ ") + (m.text || ""); }
+    if (m.t === "dock") { B.classList.add("dock"); if (m.state) state = m.state; if (m.text) last = m.text; B.dataset.state = state; idleView(); replay(); }
+    else if (m.t === "hide") B.classList.remove("dock");
+    else if (m.t === "state") { state = m.state; B.dataset.state = state; if (!B.classList.contains("busy")) idleView(); }
+    else if (m.t === "msg") { last = m.text; if (!B.classList.contains("busy")) $("sub").textContent = m.role === "user" ? "“" + m.text + "”" : m.text; }
+    else if (m.t === "show") {
+      B.classList.remove("end", "ok", "fail"); B.classList.add("busy");
+      $("title").textContent = m.title || "JARVIS"; $("sub").textContent = m.text || ""; replay();
+    }
+    else if (m.t === "step") { B.classList.add("busy"); $("sub").textContent = m.text; }
+    else if (m.t === "done") { B.classList.remove("busy"); B.classList.add("end", m.ok ? "ok" : "fail"); $("sub").textContent = (m.ok ? "✓ " : "✕ ") + (m.text || ""); }
   }
 };
 </script>

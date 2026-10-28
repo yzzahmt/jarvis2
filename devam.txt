@@ -1,5 +1,5 @@
 JARVIS — DEVAM NOTU (yeni bir yapay zekâ oturumu buradan başlasın)
-Son güncelleme: 28.10.2026 (018)
+Son güncelleme: 29.10.2026 (019)
 ==========================================================================
 
 YENİ OTURUMA İLK MESAJ OLARAK ŞUNU YAZ:
@@ -135,6 +135,8 @@ metin atılır; Jarvis'in kendi söylediğine benzeyen metin atılır. Günlükt
 Mac tanıması ilk açılışta "Konuşma Tanıma" izni ister → İzin Ver (yoksa ikinci kulak ve Mac yedeği kapalı kalır).
 Takılınca sorar (18): ajan talimatında ne zaman ask_user (belirsiz istek, çok seçenek, varsayım, olmayan yol);
 kodda 2 başarısız adımdan sonra "kullanıcıya sor" notu; yapmadığını "yaptım" demez (sohbette de).
+Dock (19): küçült (sarı düğme/⌘M/Esc) → altta Jarvis çubuğu (küre, dalga, son cevap, mikrofon/durdur/büyüt/gizle).
+jarvis/ui/web/overlay.html + App.dock (ui/app.py) + LocalBar.docked (ui/overlays.py). Ana pencere premium cilalandı.
 Testler: 58. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
 
 Bilinen sorunlar:

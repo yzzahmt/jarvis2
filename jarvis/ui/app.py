@@ -46,7 +46,7 @@ class Api:
         return self._app.hello()
 
     def minimize(self):
-        self._app.win.minimize()
+        self._app.dock(True)            # macOS Dock'a değil, ekranın altındaki Jarvis çubuğuna küçülür
 
     def settings(self):
         return self._app.settings()
@@ -67,6 +67,25 @@ class Api:
         self._app.set_mini(False)
 
     def hide(self):
+        self._app.dock(True)
+
+
+class BarApi:
+    """Alttaki çubuğun (dock) düğmeleri."""
+
+    def __init__(self, app):
+        self._app = app
+
+    def expand(self):
+        self._app.dock(False)
+
+    def mic(self):
+        return self._app.mic()
+
+    def stop(self):
+        self._app.submit("dur", show=False)
+
+    def close(self):
         self._app.hide()
 
 
@@ -88,17 +107,23 @@ class App:
             frameless=True, easy_drag=False, vibrancy=True, transparent=True, background_color="#000000")
         self.bar_win = self._bar_window()
         self.bars = Bars(self.j.agents, self.bar_win)
+        self.docked, self.last_line = False, ""
         self.win.events.loaded += self._loaded
+        try:                                     # ⌘M / sarı düğme: Dock'a değil alttaki çubuğa
+            self.win.events.minimized += lambda: threading.Thread(target=self.dock, args=(True,), daemon=True).start()
+        except Exception:
+            pass
         self.win.events.closed += lambda: self.quit()
 
     def _bar_window(self):
         try:
             sc = webview.screens[0]
-            w, h = 520, 76
+            w, h = 580, 84
             x, y = sc.x + (sc.width - w) // 2, sc.y + sc.height - h - 96
         except Exception:
-            w, h, x, y = 520, 76, None, None
-        return webview.create_window("JARVIS çubuk", str(WEB / "overlay.html"), width=w, height=h, x=x, y=y,
+            w, h, x, y = 580, 84, None, None
+        return webview.create_window("JARVIS çubuk", str(WEB / "overlay.html"), js_api=BarApi(self),
+                                     width=w, height=h, x=x, y=y,
                                      frameless=True, easy_drag=False, on_top=True, transparent=True,
                                      hidden=True, focus=False, resizable=False, background_color="#000000")
 
@@ -123,7 +148,9 @@ class App:
 
     # VoiceLoop arayüz kancaları
     def state(self, s):
-        if s == "listening" and getattr(self, "_last_state", "") == "sleep":
+        if self.docked:
+            self._dock_msg({"t": "state", "state": s})
+        elif s == "listening" and getattr(self, "_last_state", "") == "sleep":
             try:                       # "hey jarvis" ya da çift alkışla uyanınca pencere öne gelir
                 self.win.restore()
                 self.win.show()
@@ -134,6 +161,41 @@ class App:
 
     def message(self, role, text):
         self.push("msg", role=role, text=text)
+        if role != "jarvis-interim":
+            self.last_line = text
+        if self.docked:
+            self._dock_msg({"t": "msg", "role": role, "text": text})
+
+    # ---------------- alttaki çubuk (dock) ----------------
+    def _dock_msg(self, msg):
+        lb = self.bars.local
+        if lb:
+            self.bars.q.put((lb, msg))
+
+    def dock(self, on=True):
+        """Küçültünce ana pencere gizlenir, altta Jarvis çubuğu kalır (dinleme/cevap orada görünür)."""
+        lb = self.bars.local
+        if lb is None:
+            return self.win.minimize() if on else None
+        self.docked = lb.docked = on
+        if on:
+            self.visible = False
+            try:
+                self.win.hide()
+            except Exception:
+                pass
+            self._dock_msg({"t": "dock", "state": getattr(self, "_last_state", "idle"), "text": self.last_line})
+        else:
+            self._dock_msg({"t": "hide"})
+            self.set_mini(False)
+            self.win.restore()
+            self.win.show()
+            self.visible = True
+            try:
+                from AppKit import NSApplication
+                NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+            except Exception:
+                pass
 
     def ask(self, question, listen=None):
         """Onay/soru kartı gösterir; cevap düğmeden, yazıdan ya da (sesli komutsa) sesten gelir."""
@@ -337,13 +399,20 @@ class App:
         self.push("mini", on=on)
 
     def hide(self):
+        """Tamamen gizle (çubuk da); kısayol ya da 'hey jarvis' geri getirir."""
         self.visible = False
+        if self.docked:
+            self.docked = self.bars.local.docked = False
+            self._dock_msg({"t": "hide"})
         self.win.hide()
 
     def toggle_mini(self):
         """Kısayol: gizliyse altta küçük pencereyi aç ve dinlemeye başla; açıksa gizle."""
         if getattr(self, "visible", True) and getattr(self, "mini", False):
             return self.hide()
+        if self.docked:
+            self.docked = self.bars.local.docked = False
+            self._dock_msg({"t": "hide"})
         self.set_mini(True)
         self.win.show()
         self.visible = True

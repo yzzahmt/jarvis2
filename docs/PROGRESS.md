@@ -108,3 +108,6 @@ Ses tanıma zinciri (Gemini 3 model × 2 anahtar → Groq → Mac apple_stt → 
 
 ## 018 (28.10.2026)
 Takılınca sorar: ajan talimatında açık ask_user kuralları, kodda 2 başarısızlıktan sonra sor notu, sahte 'yaptım' yasağı. 58 test. Ayrıntı: yenilikler/018.
+
+## 019 (29.10.2026)
+Küçültünce alttaki Jarvis çubuğu (dock: küre, dalga, son cevap, mikrofon/durdur/büyüt/gizle); ana pencere premium cila (ışıklı kenar, avatarlı mesaj, kopyala, odak parlaması). Ayrıntı: yenilikler/019.

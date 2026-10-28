@@ -49,17 +49,19 @@ class LocalBar:
 
     def __init__(self, window):
         self.w, self.hide_timer = window, None
+        self.docked = False                  # ana pencere küçültüldü: çubuk kalıcı (görev bitince gizlenmez)
 
     def send(self, msg: dict):
         t = msg.get("t")
         if self.hide_timer:
             self.hide_timer.cancel()
             self.hide_timer = None
-        if t == "show":
+        if t in ("show", "dock"):
             self.w.show()
         self.w.evaluate_js(f"bar.on({json.dumps(msg, ensure_ascii=False)})")
-        if t == "done":
-            self.hide_timer = threading.Timer(5, self.w.hide)
+        if t == "done":                      # görev bitti: dock modundaysa sonuçtan sonra dock görünümüne dön
+            after = (lambda: self.send({"t": "dock"})) if self.docked else self.w.hide
+            self.hide_timer = threading.Timer(6, after)
             self.hide_timer.start()
         elif t == "hide":
             self.w.hide()
