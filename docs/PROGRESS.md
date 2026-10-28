@@ -123,3 +123,6 @@ Ses seçimi belirgin + tıklayınca önizleme, tek önizleme motoru, çökme kay
 
 ## 023 (29.10.2026)
 Groq'a 2 model daha, 6 ücretsiz sağlayıcı anahtar bekliyor, scripts/beyin_kontrol.py; ses Emel'e alındı, yabancı aksanlı sesler etiketlendi. Ayrıntı: yenilikler/023.
+
+## 024 (29.10.2026)
+OpenRouter: nemotron-3-ultra (araç çağrısı ✓) + gemma-4-31b (sık meşgul). Ayrıntı: yenilikler/024.

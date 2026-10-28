@@ -1,5 +1,5 @@
 JARVIS — DEVAM NOTU (yeni bir yapay zekâ oturumu buradan başlasın)
-Son güncelleme: 29.10.2026 (023)
+Son güncelleme: 29.10.2026 (024)
 ==========================================================================
 
 YENİ OTURUMA İLK MESAJ OLARAK ŞUNU YAZ:
@@ -144,8 +144,8 @@ App izni (21): JARVIS.app'e konuşma tanıma izni eklendi + yeniden imzalandı (
 macOS "Konuşma Tanıma" izni sorar → İzin Ver; sonra Mac ikinci kulağı uygulama içinde de çalışır.
 Ayarlar (22): ses satırına tıkla = seç + önizleme; seçili açıkça işaretli; tek önizleme motoru. Çökme olursa
 data/logs/crash.log'a bak (faulthandler). Uygulama simgesi paketin içinde (applet.icns).
-Beyinler (23): Gemini 4 kaynak + Groq 3 model çalışıyor; cerebras/mistral/github/sambanova/nvidia/openrouter anahtar
-bekliyor (.env.example'da adresleri). Kontrol: source scripts/env.sh && python scripts/beyin_kontrol.py
+Beyinler (23-24): Gemini 4 kaynak + Groq 3 model + OpenRouter 2 model (nemotron-3-ultra, gemma-4-31b) çalışıyor;
+cerebras/mistral/github/sambanova/nvidia anahtar bekliyor (.env.example'da adresleri). Kontrol: source scripts/env.sh && python scripts/beyin_kontrol.py
 Ses: Emel (tek doğal Türkçe Edge sesi; diğerleri yabancı aksanlı, Ahmet çalışmıyor).
 Testler: 60. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
 
