@@ -30,6 +30,7 @@ permissions:
 voice:
   wake_word: hey_jarvis
   wake_threshold: 0.35      # 28.10 ölçüm: kullanıcının 'hey jarvis'i 0,37-0,62
+  wake_reply: "Sizi dinliyorum."   # 'hey jarvis' ile uyanınca söyler (boş = yalnız kısa ses); alkışta belirgin ses çalar
   clap_enabled: true       # çift alkışla uyan
   clap_peak: 0.3           # ölçüm: MacBook mikrofonunda alkış tepesi 0,35-0,61 (eski 0,5 hiçbirini yakalamıyordu)
   clap_max_gap: 1.0
@@ -38,6 +39,7 @@ voice:
   idle_sleep_s: 60
   stt_cloud: true             # Gemini ile yazıya dökme (~1 sn); internet/kota yoksa yerel whisper
   stt_cloud_model: gemini-3.5-flash-lite
+  stt_cloud_models: [gemini-3.5-flash-lite, gemini-flash-lite-latest, gemini-3.1-flash-lite]   # her model ayrı kota; sonra Groq, Mac, yerel
   stt_model: large-v3-turbo   # yerel yedek; yalnızca gerekince yüklenir (small Türkçede zayıftı)
   words: [Vivaldi, OBİS]      # sık söylediğin özel adlar (okul, site, uygulama); ses tanıma bunları öncelikli duyar
   tts: edge               # edge (doğal sinir ağı sesi, internet) | piper (yerel) | say; edge yoksa otomatik piper
@@ -64,7 +66,10 @@ brains:
   - {name: gemini, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-3.5-flash-lite, api_key_env: GEMINI_API_KEY, vision: true, extra: {reasoning_effort: minimal}}   # 2.5-flash kaldırıldı (404)
   - {name: gemini-yedek, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-flash-latest, api_key_env: GEMINI_API_KEY, vision: true}
   - {name: gemini-2, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-3.5-flash-lite, api_key_env: GEMINI_API_KEY_2, vision: true, extra: {reasoning_effort: minimal}}   # 2. anahtar: kota iki katı
-  - {name: groq, base_url: "https://api.groq.com/openai/v1", model: llama-3.3-70b-versatile, api_key_env: GROQ_API_KEY}
+  - {name: gemini-lite, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-flash-lite-latest, api_key_env: GEMINI_API_KEY, vision: true}   # her model ayrı kota
+  - {name: gemini-lite-2, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-flash-lite-latest, api_key_env: GEMINI_API_KEY_2, vision: true}
+  - {name: gemini-yedek-2, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-flash-latest, api_key_env: GEMINI_API_KEY_2, vision: true}
+  - {name: groq, base_url: "https://api.groq.com/openai/v1", model: openai/gpt-oss-120b, api_key_env: GROQ_API_KEY}   # llama-3.3-70b kaldırıldı
   - {name: cerebras, base_url: "https://api.cerebras.ai/v1", model: llama-3.3-70b, api_key_env: CEREBRAS_API_KEY}
   - {name: openrouter, base_url: "https://openrouter.ai/api/v1", model: "deepseek/deepseek-chat-v3-0324:free", api_key_env: OPENROUTER_API_KEY}
   - {name: yerel, base_url: "http://127.0.0.1:11434/v1", model: qwen3:4b, timeout_s: 180, extra: {reasoning_effort: none}}

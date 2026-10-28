@@ -96,3 +96,12 @@ Jarvis/data/logs/
 
 ## 014 (28.10.2026)
 Günlük bulut sınırı (300), ikinci Gemini anahtarı (gemini-2), gemini-yedek, mini Jarvis kısayolu ('<'+'z'). 51 test geçti. Ayrıntı: yenilikler/014.
+
+## 015 (28.10.2026)
+Ses tanıma: örnek cümle ipucu kaldırıldı (sessizlikte uyduruluyor, sahte Zorin test komutu), karışık Türkçe/İngilizce talimatı, sessizlik kapısı, 2. anahtara geçiş. 53 test. Ayrıntı: yenilikler/015.
+
+## 016 (28.10.2026)
+'hey jarvis' → "Sizi dinliyorum.", alkış → belirgin ses; gürültü kapısı speechy() (gürültüde uydurma API/.env komutu), ipucundan genel kelimeler çıkarıldı. 54 test. Ayrıntı: yenilikler/016.
+
+## 017 (28.10.2026)
+Ses tanıma zinciri (Gemini 3 model × 2 anahtar → Groq → Mac apple_stt → whisper), Mac ikinci kulak ile uydurma komut reddi, kendi sesini yok sayma, mikrofon 33→80 ve yumuşak kesme, Groq gpt-oss-120b. 57 test. Ayrıntı: yenilikler/017.

@@ -21,18 +21,23 @@ def _rms(f) -> float:
     return float(np.sqrt(np.mean((f.astype(np.float32) / 32768.0) ** 2)))
 
 
-def chime():
-    """'Dinliyorum' sesi: kısa, yumuşak iki ton (konuşmadan anında; sounddevice ile, gecikmesiz)."""
+def chime(freqs=(880, 1320), dur=0.07, vol=0.18):
+    """'Dinliyorum' sesi: kısa, yumuşak tonlar (konuşmadan anında; sounddevice ile, gecikmesiz)."""
     try:
         import sounddevice as sd
         sr = 24000
-        t = np.arange(int(sr * 0.07)) / sr
+        t = np.arange(int(sr * dur)) / sr
         env = np.sin(np.pi * t / t[-1]) ** 2
-        tone = np.concatenate([np.sin(2 * np.pi * 880 * t) * env, np.sin(2 * np.pi * 1320 * t) * env]) * 0.18
+        tone = np.concatenate([np.sin(2 * np.pi * f * t) * env for f in freqs]) * vol
         sd.play(tone.astype(np.float32), sr)
     except Exception:
         pass
-WARM = ["Dinliyorum, ne yapmamı istersin?", "Bir süredir komut gelmedi, uyku moduna geçiyorum.", "Tamam.",
+
+
+def clap_chime():
+    """Alkışla uyanınca: kısa sesten daha belirgin, yükselen üç ton (~0,4 sn)."""
+    chime((660, 880, 1320), dur=0.12, vol=0.35)
+WARM = ["Sizi dinliyorum.", "Dinliyorum, ne yapmamı istersin?", "Bir süredir komut gelmedi, uyku moduna geçiyorum.", "Tamam.",
         "Görevi durdurdum.", "Tamam, iptal ettim."]
 
 
@@ -110,9 +115,10 @@ class VoiceLoop:
             self._hotkeys(v)
         from .speech_to_text import STT
         self.stt = STT(v.get("stt_model", "small"), str(config.path("data/hf")), v.get("words") or [],
-                       v.get("stt_cloud_model", "gemini-3.5-flash-lite"), v.get("stt_cloud", True))
+                       v.get("stt_cloud_model", "gemini-3.5-flash-lite"), v.get("stt_cloud", True),
+                       v.get("stt_cloud_models"))
         if self.j.brains:
-            self.stt.allow, self.stt.used = self.j.brains.can_cloud, lambda: self.j.brains.note("gemini-stt")
+            self.stt.allow, self.stt.used = self.j.brains.can_cloud, lambda name="gemini-stt": self.j.brains.note(name)
         status("Konuşma tanıma: " + ("Gemini (bulut), yedek yerel" if STT._key() and v.get("stt_cloud", True) else "yerel model"))
         threading.Thread(target=self._warm_llm, daemon=True).start()
 
@@ -141,9 +147,19 @@ class VoiceLoop:
         on = self.mic.toggle()
         status("MİKROFON AÇIK" if on else "MİKROFON KAPALI (yalnızca kısayolla uyanır)")
 
+    def heard_self(self, text) -> bool:
+        """Duyulan metin Jarvis'in son 20 sn'de söylediğinin parçası mı (hoparlörden mikrofona yankı)."""
+        said, at = getattr(self, "said", ("", 0))
+        if not said or time.time() - at > 20:
+            return False
+        from .speech_to_text import _words
+        a, b = _words(text), set(_words(said))
+        return bool(a) and sum(w in b for w in a) / len(a) >= 0.7
+
     def say(self, text, interruptible=True):
         """Konuşur. Kullanıcı söze girerse (ChatGPT gibi) hemen susar; söylediğinin başı self.preroll'da kalır."""
         self.ui.state("speaking")
+        self.said = (text, time.time())    # kendi sesini komut sanmasın (heard_self)
         self.mic.drain()
         self.tts.speak(text, block=False)
         pre = self._watch(interruptible and self.v.get("barge_in", True))
@@ -210,6 +226,7 @@ class VoiceLoop:
     def sleep_mode(self):
         status("UYKU — 'hey jarvis', kısayol" + (" veya çift alkış" if self.clap else "") + " ile uyanır")
         self.ui.state("sleep")
+        self.wake_src = "key"                    # kısayol/arayüz; kelime ve alkış aşağıda değiştirir
         silent, warned = 0, False
         for f in self.mic.frames(timeout=0.2):
             if self.wake_evt.is_set():
@@ -223,7 +240,11 @@ class VoiceLoop:
                        "JARVIS'e izin ver, sonra Jarvis'i yeniden aç.")
                 status(msg)
                 self.ui.message("jarvis-interim", msg)
-            if (self.ww and self.ww.feed(f)) or (self.clap and self.clap.feed(f)):
+            if self.ww and self.ww.feed(f):
+                self.wake_src = "word"
+                break
+            if self.clap and self.clap.feed(f):
+                self.wake_src = "clap"
                 break
         self.wake_evt.clear()
 
@@ -232,7 +253,17 @@ class VoiceLoop:
         greet = self.j.handle("uyan")
         base = "Dinliyorum, ne yapmamı istersin?"
         extra = greet.replace(base, "").strip()
-        if self.v.get("wake_chime", True) and not extra:
+        src = getattr(self, "wake_src", "key")
+        reply = self.v.get("wake_reply", "Sizi dinliyorum.")
+        if src == "word" and reply and not extra:
+            self.ui.message("jarvis", reply)
+            self.say(reply)                  # söze girersen susar, sözün kaybolmaz (preroll)
+        elif src == "clap" and not extra:
+            clap_chime()
+            self.ui.message("jarvis-interim", "Dinliyorum…")
+            time.sleep(0.45)
+            self.mic.drain()
+        elif self.v.get("wake_chime", True) and not extra:
             chime()                          # konuşmadan anında dinlemeye geç (önceden ~2,5 sn selamlama vardı)
             self.ui.message("jarvis-interim", "Dinliyorum…")
             time.sleep(0.15)
@@ -255,7 +286,13 @@ class VoiceLoop:
                 continue
             self.ui.state("thinking")
             text = self.stt.transcribe(audio)
+            if self.stt.rejected:
+                status(f"yok sayıldı (uydurma olabilir): {self.stt.rejected}")
+                self.stt.rejected = ""
             if not text or len(norm(text)) < 2:
+                continue
+            if self.heard_self(text):
+                status(f"yok sayıldı (kendi sesi): {text}")
                 continue
             status(f"sen> {text}")
             self.ui.message("user", text)

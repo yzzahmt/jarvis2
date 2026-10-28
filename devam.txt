@@ -1,5 +1,5 @@
 JARVIS — DEVAM NOTU (yeni bir yapay zekâ oturumu buradan başlasın)
-Son güncelleme: 28.10.2026 (014)
+Son güncelleme: 28.10.2026 (017)
 ==========================================================================
 
 YENİ OTURUMA İLK MESAJ OLARAK ŞUNU YAZ:
@@ -57,7 +57,8 @@ jarvis/automation/session.py Görünür Playwright tarayıcısı (oturumlar data
                             numaralı öğe listesi, fill_secret, save_secret, ödeme/hesap tanıma
 jarvis/secrets.py           macOS Anahtar Zinciri kasası (servis "jarvis"); model şifreleri/anahtarları GÖRMEZ
 jarvis/brains.py, llm.py    Çoklu ücretsiz beyin + yerel Ollama; görme (vision) yalnızca Gemini, yoksa gemma3
-jarvis/voice/               STT Gemini (yedek yerel whisper), TTS Edge akış (Emel/Ava), uyandırma, alkış
+jarvis/voice/               STT zinciri Gemini→Groq→Mac(apple_stt)→whisper + Mac ikinci kulak; TTS Edge; uyandırma, alkış
+tools/apple_stt/            Mac cihaz içi Türkçe tanıma (Swift) → data/bin/apple_stt (scripts/build_apple_stt.sh)
 jarvis/ui/                  Masaüstü arayüzü (JARVIS.app bunu açar)
 config/settings.yaml        Tüm ayarlar (ses, beyinler, bütçe, izinler)
 config/machines.yaml        Linux makinelerinin IP/kullanıcıları (henüz boş)
@@ -120,6 +121,19 @@ Sohbet tek Gemini çağrısı (yönlendirici cevabı da yazar). Ses şu an Emel,
 Kota (14): günde en çok 300 bulut isteği (settings budget.max_cloud_calls_per_day), sonra yerel.
 İkinci Gemini anahtarı .env'de GEMINI_API_KEY_2 (beyin 'gemini-2'). Mini Jarvis: '<' + 'z' birlikte (voice.quick_keys).
 Testler: 51 geçiyor. 011-014 commit edildi ve GitHub'a gönderildi (28.10.2026).
+
+Ses tanıma (15): ipucunda örnek cümle YOK (sessizlikte aynen uyduruluyordu → sahte "testleri çalıştır" → "Zorin OS için
+bağlantı ayarı yok"). Talimat Türkçe+İngilizce karışık konuşmaya göre; sessiz kayıt modele gitmez; kota dolunca 2. anahtar.
+Uyanma (16): 'hey jarvis' → "Sizi dinliyorum." (voice.wake_reply), alkış → belirgin üç ton, kısayol → kısa ses.
+Gürültü kapısı (16): speechy() — 120 ms kesintisiz konuşma yoksa ses modele gitmez (gürültüde "API key'i güncelle"
+uyduruyordu). İpucunda genel kelime (API, .env) de YOK.
+Kaynaklar hiç bitmesin (17): ses tanıma Gemini (3 model × 2 anahtar) → Groq whisper → Mac'in kendi tanıması (kotasız)
+→ yerel whisper. Beyinlere flash-lite-latest ×2 anahtar eklendi; Groq modeli openai/gpt-oss-120b. GROQ_API_KEY .env'de.
+Mikrofon giriş seviyesi 33 → 80 (kasarak konuşma sorunu); kesme eşiği yumuşak, bitiş sessizliği 1,2 sn, kısık ses yükseltilir.
+ASLA KENDİ KENDİNE KOMUT (17): talimatta örnek kelime yok; Mac tanıması "ikinci kulak" — o duymadıysa/örtüşmüyorsa
+metin atılır; Jarvis'in kendi söylediğine benzeyen metin atılır. Günlükte "yok sayıldı" satırları.
+Mac tanıması ilk açılışta "Konuşma Tanıma" izni ister → İzin Ver (yoksa ikinci kulak ve Mac yedeği kapalı kalır).
+Testler: 57. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
 
 Bilinen sorunlar:
 - CAPTCHA ve SMS kodunu Jarvis geçemez; kullanıcıya sorar.

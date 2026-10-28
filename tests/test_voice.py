@@ -38,3 +38,81 @@ def test_speakable_and_stt_fixes():
     assert speakable("Kara delikler **çöker** 🌌✨ bkz. https://x.com/a") == "Kara delikler çöker bkz. bağlantı"
     assert speakable("👍") == ""
     assert fix_stt("Carvis sorin o es'ta testleri çalıştır") == "Jarvis Zorin OS'ta testleri çalıştır"
+
+
+def test_stt_no_example_sentences_in_hint():
+    # Örnek cümle ipucu, sessizlikte "testleri çalıştır" diye uydurulup Zorin'e gidiyordu (015)
+    from jarvis.voice import speech_to_text as S
+    st = S.STT.__new__(S.STT)
+    st.words = ["OBİS"]
+    assert "çalıştır" not in S.NAMES and "?" not in S.NAMES
+    assert S.clean('"Bana API anahtarını al."') == "Bana API anahtarını al."
+    assert S.clean("Sen bir konuşma yazıya dökücüsün.") == ""
+    assert S.clean("Jarvis, Zorin OS, Linux Mint, YouTube, Gemini, ChatGPT, Spotify") == ""
+    assert "API" not in S.NAMES and "env" not in S.NAMES
+
+
+def test_stt_skips_silence():
+    import numpy as np
+    from jarvis.voice import speech_to_text as S
+    st = S.STT.__new__(S.STT)
+    st._gemini = st._whisper = lambda a: (_ for _ in ()).throw(AssertionError("sessizlikte model çağrıldı"))
+    assert st.transcribe(np.zeros(24000, np.int16)) == ""
+
+
+def test_stt_speech_gate():
+    import numpy as np
+    from jarvis.voice.speech_to_text import speechy
+    rng, sr = np.random.default_rng(0), 16000
+    noise = rng.normal(0, 0.01 * 32768, sr * 2)
+    clicks = rng.normal(0, 0.005 * 32768, sr * 2)
+    for i in range(0, sr * 2, 2500):
+        clicks[i:i + 200] += rng.normal(0, 0.15 * 32768, 200)
+    t = np.arange(sr) / sr
+    voice = np.concatenate([noise[:sr // 2], noise[:sr] + 0.1 * 32768 * np.sin(2 * np.pi * 220 * t), noise[:sr // 2]])
+    assert not speechy(noise.astype(np.int16)) and not speechy(clicks.astype(np.int16))
+    assert speechy(voice.astype(np.int16))
+
+
+def test_stt_source_chain(monkeypatch):
+    # Gemini/Groq yoksa Mac tanımasına, o da yoksa yerel whisper'a düşer (hiçbir kaynak bitince durmaz)
+    import numpy as np
+    from jarvis.voice import speech_to_text as S
+    monkeypatch.setattr(S, "speechy", lambda a: True)
+    st = S.STT.__new__(S.STT)
+    st._gemini = st._groq = lambda a: None
+    st._apple = lambda a: "Safari'yi aç"
+    st._whisper = lambda a: (_ for _ in ()).throw(AssertionError("yerele gerek yoktu"))
+    assert st.transcribe(np.ones(16000, np.int16)) == "Safari'yi aç"
+    st._apple = lambda a: None
+    st._whisper = lambda a: "yerel"
+    assert st.transcribe(np.ones(16000, np.int16)) == "yerel"
+
+
+def test_record_keeps_soft_tail():
+    # Başladıktan sonra eşiğin altındaki yumuşak sesler (eşiğin %60'ı üstü) cümleyi kesmez
+    import numpy as np
+    from jarvis.voice.speech_to_text import record_utterance
+    fr = lambda lvl, n: [np.full(480, int(lvl * 32768), np.int16)] * n
+    frames = iter(fr(0.001, 20) + fr(0.05, 20) + fr(0.008, 40) + fr(0.0, 60))
+    a = record_utterance(frames, thresh=0.01)
+    assert a is not None and len(a) >= 480 * 60
+
+
+def test_second_ear_rejects_invented_text(monkeypatch):
+    # 017: Gemini "screenshot'ı kaydet" uydurdu; Mac tanıması bir şey duymadıysa/örtüşmüyorsa atılır
+    import numpy as np
+    from jarvis.voice import speech_to_text as S
+    monkeypatch.setattr(S, "speechy", lambda a: True)
+    st = S.STT.__new__(S.STT)
+    st.rejected = ""
+    st._groq = lambda a: None
+    st._gemini = lambda a: "screenshot'ı kaydet."
+    for mac in ("", "evet evet tamam"):
+        st._apple = lambda a, m=mac: m
+        assert st.transcribe(np.ones(16000, np.int16)) == "" and st.rejected
+    st._gemini = lambda a: "ChatGPT API key'ini kopyala ve .env dosyasına yapıştır."
+    st._apple = lambda a: "Çetin Apikini kopyala veen dosyasına yapıştır"     # gerçek Mac çıktısı (İngilizce bozuk)
+    assert st.transcribe(np.ones(16000, np.int16)).startswith("ChatGPT")
+    assert S.agree("İziço panelinden sandbox secret key'i al", "Easyce panelinden Sound for Secret Kia Alevi")
+    assert "screenshot" not in S.PROMPT and "API" not in S.PROMPT.split("Kısaltmaları")[0]
