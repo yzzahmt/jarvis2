@@ -286,6 +286,9 @@ class VoiceLoop:
                 continue
             self.ui.state("thinking")
             text = self.stt.transcribe(audio)
+            if self.stt.apple_err:
+                status(f"Mac tanıması çalışmadı: {self.stt.apple_err}")
+                self.stt.apple_err = ""
             if self.stt.rejected:
                 status(f"yok sayıldı (uydurma olabilir): {self.stt.rejected}")
                 self.stt.rejected = ""

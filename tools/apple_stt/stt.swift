@@ -28,8 +28,12 @@ while let path = readLine() {
     var out = ""
     let task = rec.recognitionTask(with: req) { res, err in
         if let r = res, r.isFinal { out = r.bestTranscription.formattedString; done.signal() }
-        else if err != nil { done.signal() }
+        else if let e = err as NSError? {
+            // 1110 = konuşma yok (gerçek "boş"); başka hata = tanıma çalışmadı → "!" ile bildir (Python veto etmez)
+            out = (e.code == 1110) ? "" : "!\(e.domain) \(e.code) \(e.localizedDescription)"
+            done.signal()
+        }
     }
-    if done.wait(timeout: .now() + 15) == .timedOut { task.cancel(); out = "" }
+    if done.wait(timeout: .now() + 15) == .timedOut { task.cancel(); out = "!zaman aşımı" }
     print(out.replacingOccurrences(of: "\n", with: " "))
 }

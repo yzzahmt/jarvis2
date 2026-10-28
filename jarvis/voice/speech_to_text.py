@@ -28,9 +28,9 @@ PROMPT = """Sen bir konuşma yazıya dökücüsün. Kayıtta bir kişi bilgisaya
 Kurallar:
 - Yalnızca kayıtta gerçekten söyleneni, söylendiği sırayla yaz. Çevirme, özetleme, düzeltme, cevap verme.
 - İngilizce ve yabancı kelimeleri özgün yazımıyla yaz; Türkçe ekleri kesme işaretiyle bağla.
-- Kısaltmaları büyük harfle yaz (API, PDF, URL, SSH).
-- Kayıtta anlaşılır konuşma yoksa (sessizlik, gürültü, nefes, müzik) hiçbir şey yazma, boş döndür. Asla tahmin edip cümle uydurma.
-- Aşağıdaki özel adlar yalnızca doğru yazımları içindir; kayıtta açıkça duyulmuyorsa kullanma: """
+- Kısaltmaları büyük harfle yaz.
+- Kayıtta anlaşılır konuşma yoksa (sessizlik, gürültü, nefes, müzik, uzaktaki TV/konuşma) hiçbir şey yazma, boş döndür. Asla tahmin edip cümle uydurma."""
+# Gemini'ye ad listesi de verilmez: "Jarvis, Spotify'ı aç" listedeki iki addan uyduruldu (020). Liste yalnız Groq/Mac/whisper'a.
 GEMINI = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent"
 GROQ = "https://api.groq.com/openai/v1/audio/transcriptions"
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -73,7 +73,20 @@ def speechy(audio: np.ndarray, rate=16000) -> bool:
     for v in on:
         run = run + 1 if v else 0
         best = max(best, run)
-    return best >= 4
+    if best < 4:
+        return False
+    return vad_speech(x) >= 0.3
+
+
+def vad_speech(x: np.ndarray) -> float:
+    """Silero VAD (faster-whisper içinde, yerel, ~5 ms): kayıttaki insan konuşması süresi (sn).
+    Ölçüm (29.10): konuşma 3,7-3,8 sn; beyaz/kahverengi gürültü, klavye, sessizlik 0. Yüklenemezse kapıyı geçer."""
+    try:
+        from faster_whisper.vad import VadOptions, get_speech_timestamps
+    except Exception:
+        return 99.0
+    ts = get_speech_timestamps(x.astype(np.float32), VadOptions(threshold=0.5, min_speech_duration_ms=250))
+    return sum(t["end"] - t["start"] for t in ts) / 16000
 
 
 def _words(t: str) -> list[str]:
@@ -114,6 +127,8 @@ class STT:
         self.used = lambda name="gemini-stt": None   # bulut isteği sayacı
         self.until: dict[str, float] = {}  # kotası dolan kaynak → ne zamana kadar atlanır
         self.apple = None
+        self.apple_ok = False              # Mac tanıması bu oturumda en az bir kez metin döndürdü mü (veto hakkı)
+        self.apple_err = ""
         self.last = ""                     # son kullanılan kaynak (durum için)
         self.rejected = ""                 # ikinci kulağın reddettiği son metin (günlük için)
 
@@ -141,7 +156,7 @@ class STT:
     def _gemini(self, audio) -> str | None:
         if not (self.cloud and self._keys() and self.allow()):
             return None
-        body = {"systemInstruction": {"parts": [{"text": PROMPT + self.hint + "."}]},
+        body = {"systemInstruction": {"parts": [{"text": PROMPT}]},
                 "contents": [{"parts": [{"inline_data": {
                     "mime_type": "audio/wav", "data": base64.b64encode(wav_bytes(audio)).decode()}}]}],
                 "generationConfig": {"temperature": 0, "thinkingConfig": {"thinkingLevel": "minimal"}}}
@@ -203,8 +218,14 @@ class STT:
                 self.apple.stdin.write(tmp + "\n")
                 self.apple.stdin.flush()
                 out = self.apple.stdout.readline()
+            if out.startswith("!"):            # tanıma çalışmadı (izin/bağlam): "boş" değil, bilinmiyor → veto yok
+                self.apple_err = out[1:].strip()
+                return None
+            out = clean(out)
+            if out:
+                self.apple_ok = True
             self.last = "mac"
-            return clean(out)
+            return out
         except (OSError, ValueError):
             self._cool("apple", 0)
             return None
@@ -240,7 +261,9 @@ class STT:
         mac = check.get("t")
         if t is None:
             t = mac if mac is not None else self._whisper(audio)
-        elif mac is not None and t and not agree(t, mac):
+        elif mac is not None and t and (mac or self.apple_ok) and not agree(t, mac):
+            # Mac boş döndüyse yalnız çalıştığı kanıtlanmışsa veto eder (00:04'te uygulama içinde hep boş dönüp
+            # gerçek sözleri atıyordu)
             self.rejected = f"{t!r} (Mac duydu: {mac!r})"
             return ""
         t = fix_stt(t)

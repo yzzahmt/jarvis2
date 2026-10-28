@@ -60,9 +60,10 @@ def test_stt_skips_silence():
     assert st.transcribe(np.zeros(24000, np.int16)) == ""
 
 
-def test_stt_speech_gate():
+def test_stt_speech_gate(monkeypatch):
     import numpy as np
-    from jarvis.voice.speech_to_text import speechy
+    from jarvis.voice import speech_to_text as S
+    speechy = S.speechy
     rng, sr = np.random.default_rng(0), 16000
     noise = rng.normal(0, 0.01 * 32768, sr * 2)
     clicks = rng.normal(0, 0.005 * 32768, sr * 2)
@@ -71,6 +72,7 @@ def test_stt_speech_gate():
     t = np.arange(sr) / sr
     voice = np.concatenate([noise[:sr // 2], noise[:sr] + 0.1 * 32768 * np.sin(2 * np.pi * 220 * t), noise[:sr // 2]])
     assert not speechy(noise.astype(np.int16)) and not speechy(clicks.astype(np.int16))
+    monkeypatch.setattr(S, "vad_speech", lambda x: 1.0)        # sinüs insan sesi değil; enerji kısmını dene
     assert speechy(voice.astype(np.int16))
 
 
@@ -105,7 +107,7 @@ def test_second_ear_rejects_invented_text(monkeypatch):
     from jarvis.voice import speech_to_text as S
     monkeypatch.setattr(S, "speechy", lambda a: True)
     st = S.STT.__new__(S.STT)
-    st.rejected = ""
+    st.rejected, st.apple_ok = "", True
     st._groq = lambda a: None
     st._gemini = lambda a: "screenshot'ı kaydet."
     for mac in ("", "evet evet tamam"):
@@ -116,3 +118,24 @@ def test_second_ear_rejects_invented_text(monkeypatch):
     assert st.transcribe(np.ones(16000, np.int16)).startswith("ChatGPT")
     assert S.agree("İziço panelinden sandbox secret key'i al", "Easyce panelinden Sound for Secret Kia Alevi")
     assert "screenshot" not in S.PROMPT and "API" not in S.PROMPT.split("Kısaltmaları")[0]
+
+
+def test_second_ear_without_proof_does_not_veto(monkeypatch):
+    # Mac tanıması bu oturumda hiç çalışmadıysa (uygulama içinde hep boş) gerçek sözleri atmasın
+    import numpy as np
+    from jarvis.voice import speech_to_text as S
+    monkeypatch.setattr(S, "speechy", lambda a: True)
+    st = S.STT.__new__(S.STT)
+    st.rejected, st.apple_ok = "", False
+    st._groq = lambda a: None
+    st._gemini = lambda a: "Naber, nasılsın?"
+    st._apple = lambda a: ""
+    assert st.transcribe(np.ones(16000, np.int16)) == "Naber, nasılsın?" and not st.rejected
+
+
+def test_vad_rejects_noise_and_no_names_to_gemini():
+    import numpy as np
+    from jarvis.voice import speech_to_text as S
+    noise = np.random.default_rng(2).normal(0, 0.03, 32000).astype(np.float32)
+    assert S.vad_speech(noise) < 0.3
+    assert "Spotify" not in S.PROMPT and "Jarvis" not in S.PROMPT

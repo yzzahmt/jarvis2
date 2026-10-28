@@ -111,3 +111,6 @@ Takılınca sorar: ajan talimatında açık ask_user kuralları, kodda 2 başar�
 
 ## 019 (29.10.2026)
 Küçültünce alttaki Jarvis çubuğu (dock: küre, dalga, son cevap, mikrofon/durdur/büyüt/gizle); ana pencere premium cila (ışıklı kenar, avatarlı mesaj, kopyala, odak parlaması). Ayrıntı: yenilikler/019.
+
+## 020 (29.10.2026)
+İkinci kulak uygulama içinde gerçek sözleri atıyordu → kanıt şartı; Silero VAD kapısı; Gemini'ye ad listesi yok. 60 test. Ayrıntı: yenilikler/020.
