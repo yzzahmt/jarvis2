@@ -3,10 +3,10 @@ api: {host: 127.0.0.1, port: 8765}   # yalnızca yerel; internete açılmaz
 
 llm:
   url: http://127.0.0.1:11434
-  model: qwen3:8b            # yönlendirme + ajan aynı model: RAM'de tek model kalır (değiş-tokuş ~2 dk sürüyordu)
-  fallback_models: [qwen3:4b, gemma3:4b]
-  agent_model: qwen3:8b
-  keep_alive: 30m
+  model: qwen3:4b            # yalnızca YEDEK (asıl beyin bulut). 8b + whisper 16 GB'ı doldurup Mac'i donduruyordu
+  fallback_models: [gemma3:4b]
+  agent_model: qwen3:4b
+  keep_alive: 10m
   num_ctx: 8192
   vision_model: gemma3:4b
   timeout_s: 180   # ilk yükleme HDD'den yavaş olabilir
@@ -16,6 +16,7 @@ budget:
   max_auto_fixes: 2          # aynı hata için
   max_task_seconds: 900
   max_context_chars: 20000
+  max_cloud_calls_per_day: 300   # ücretsiz Gemini'yi az kullan: günde en çok bu kadar istek, sonra yalnız yerel
   max_cloud_calls_per_task: 40  # yalnızca ücretsiz katmanlar (Claude kullanılmaz); 0 = bulut kapalı
   subagents: false
   dedupe_hours: 24
@@ -28,15 +29,20 @@ permissions:
 
 voice:
   wake_word: hey_jarvis
-  wake_threshold: 0.5
+  wake_threshold: 0.35      # 28.10 ölçüm: kullanıcının 'hey jarvis'i 0,37-0,62
   clap_enabled: true       # çift alkışla uyan
+  clap_peak: 0.3           # ölçüm: MacBook mikrofonunda alkış tepesi 0,35-0,61 (eski 0,5 hiçbirini yakalamıyordu)
+  clap_max_gap: 1.0
   hotkey: "<cmd>+<shift>+j"
+  quick_keys: "<+z"          # birlikte basınca altta küçük Jarvis açılır/kapanır (ChatGPT gibi)
   idle_sleep_s: 60
-  stt_model: large-v3-turbo   # small Türkçede zayıftı
+  stt_cloud: true             # Gemini ile yazıya dökme (~1 sn); internet/kota yoksa yerel whisper
+  stt_cloud_model: gemini-3.5-flash-lite
+  stt_model: large-v3-turbo   # yerel yedek; yalnızca gerekince yüklenir (small Türkçede zayıftı)
   words: [Vivaldi, OBİS]      # sık söylediğin özel adlar (okul, site, uygulama); ses tanıma bunları öncelikli duyar
   tts: edge               # edge (doğal sinir ağı sesi, internet) | piper (yerel) | say; edge yoksa otomatik piper
-  edge_voice: en-US-AvaMultilingualNeural   # sıcak kadın (çok dilli, Türkçe konuşur); diğer: en-US-AndrewMultilingualNeural, tr-TR-EmelNeural
-  edge_rate: "+0%"
+  edge_voice: tr-TR-EmelNeural   # arayüz > dişli > Ses ile değişir (Ava, Andrew, Emma, Brian, Emel)
+  edge_rate: "+10%"         # biraz hızlı = daha akıcı, daha az bekleme
   edge_pitch: "+0Hz"
   piper_voice: tr_TR-dfki-medium
   say_voice: Yelda
@@ -55,11 +61,13 @@ agent:                    # genel ajan (sabit komutlara uymayan istekler)
 # Anahtarlar Jarvis/.env içinde (git dışı). Anahtarı olmayan atlanır. Son sıradaki yerel model hep çalışır.
 # Model adları değişebilir: sağlayıcının /models listesinden güncelle.
 brains:
-  - {name: gemini, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-2.5-flash, api_key_env: GEMINI_API_KEY, vision: true, extra: {reasoning_effort: none}}
+  - {name: gemini, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-3.5-flash-lite, api_key_env: GEMINI_API_KEY, vision: true, extra: {reasoning_effort: minimal}}   # 2.5-flash kaldırıldı (404)
+  - {name: gemini-yedek, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-flash-latest, api_key_env: GEMINI_API_KEY, vision: true}
+  - {name: gemini-2, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-3.5-flash-lite, api_key_env: GEMINI_API_KEY_2, vision: true, extra: {reasoning_effort: minimal}}   # 2. anahtar: kota iki katı
   - {name: groq, base_url: "https://api.groq.com/openai/v1", model: llama-3.3-70b-versatile, api_key_env: GROQ_API_KEY}
   - {name: cerebras, base_url: "https://api.cerebras.ai/v1", model: llama-3.3-70b, api_key_env: CEREBRAS_API_KEY}
   - {name: openrouter, base_url: "https://openrouter.ai/api/v1", model: "deepseek/deepseek-chat-v3-0324:free", api_key_env: OPENROUTER_API_KEY}
-  - {name: yerel, base_url: "http://127.0.0.1:11434/v1", model: qwen3:8b, timeout_s: 180, extra: {reasoning_effort: none}}
+  - {name: yerel, base_url: "http://127.0.0.1:11434/v1", model: qwen3:4b, timeout_s: 180, extra: {reasoning_effort: none}}
 
 ui:
   speak: true             # yanıtları sesli oku (mikrofon olmasa da)

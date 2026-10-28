@@ -76,7 +76,7 @@ def shell_risk(a) -> bool:
 
 
 @tool("shell", "Bir bilgisayarda kabuk komutu çalıştırır (macOS: zsh/bash, Linux: bash). Çıktıyı döndürür.",
-      risk=shell_risk, command=S("komut"), machine=S("mac|cachyos|mint (varsayılan mac)", optional=True))
+      risk=shell_risk, command=S("komut"), machine=S("mac|zorin|mint (varsayılan mac)", optional=True))
 def t_shell(ctx, command, machine="mac"):
     if DANGER.search(command):
         return "REDDEDİLDİ: tehlikeli komut"
@@ -375,14 +375,14 @@ def t_browser(ctx, action, **a):
 AI_WEB = ("gemini", "chatgpt")
 
 
-@tool("ask_ai", "Büyük işi başka bir yapay zekâ aracına verir. target: kod (CachyOS'ta Gemini CLI/aider proje klasöründe "
+@tool("ask_ai", "Büyük işi başka bir yapay zekâ aracına verir. target: kod (Zorin OS'ta Gemini CLI/aider proje klasöründe "
       "kod yazar/düzeltir) | gemini | chatgpt (tarayıcıdaki sohbet: araştırma, uzun yazı, fikir). "
       "Bağlamı içeren, net ve iyi yazılmış bir prompt ver.",
       risk=lambda a: a.get("target", "kod") not in AI_WEB, prompt=S("prompt"),
       target=S("kod|gemini|chatgpt (varsayılan kod)", optional=True),
-      machine=S("kod için makine (varsayılan cachyos)", optional=True),
+      machine=S("kod için makine (varsayılan zorin)", optional=True),
       workdir=S("kod için proje klasörü (proje dizini altında)", optional=True))
-def t_ask_ai(ctx, prompt, target="kod", machine="cachyos", workdir=""):
+def t_ask_ai(ctx, prompt, target="kod", machine="zorin", workdir=""):
     if target in AI_WEB:
         return clip(ctx.browser().do("ai_chat", timeout=200, site=target, text=prompt), 4000)
     a = ctx.agents.get(machine)

@@ -49,7 +49,7 @@ header { height: 44px; display: flex; align-items: center; padding: 0 14px; gap:
 .lights button { width: 12px; height: 12px; border-radius: 50%; border: 0; cursor: default; opacity: .9; }
 .lights .c { background: #ff5f57; } .lights .m { background: #febc2e; }
 .lights:hover button { opacity: 1; }
-.brand { flex: 1; text-align: center; font-size: 12px; font-weight: 600; letter-spacing: .32em; color: var(--dim); margin-right: 40px; }
+.brand { flex: 1; text-align: center; font-size: 12px; font-weight: 600; letter-spacing: .32em; color: var(--dim); margin-left: 32px; }
 .icon-btn { width: 28px; height: 28px; border-radius: 8px; border: 0; background: transparent; color: var(--dim);
   display: grid; place-items: center; cursor: default; }
 .icon-btn:hover { background: var(--field); color: var(--text); }
@@ -143,6 +143,58 @@ body[data-state="listening"] .mic { animation: pulse 1.2s ease-in-out infinite; 
 .stopb { background: var(--field); color: var(--bad); display: none; }
 body.busy .stopb { display: grid; }
 .hint { text-align: center; font-size: 11px; color: var(--faint); padding-bottom: 10px; margin-top: -6px; }
+
+/* örnek komutlar */
+.sugs { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 14px; }
+.sug { font: inherit; font-size: 12.5px; padding: 6px 12px; border-radius: 999px; border: 0; background: var(--card);
+  color: var(--text); cursor: default; transition: transform .15s, background .2s; }
+.sug:hover { background: var(--field); } .sug:active { transform: scale(.95); }
+
+/* uyarı şeridi */
+.banner { align-self: stretch; display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px;
+  background: linear-gradient(135deg, rgba(100,210,255,.16), rgba(191,90,242,.16)); font-size: 12.5px; cursor: default; }
+.banner b { font-weight: 600; } .banner span { flex: 1; color: var(--dim); } .banner .go { color: var(--accent); font-weight: 600; }
+
+/* ödeme onayı */
+.ask.pay { box-shadow: 0 0 0 1.5px var(--bad) inset; }
+.ask.pay .yes { background: var(--bad); }
+.ask .tag { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; color: var(--bad); margin-bottom: 6px; }
+
+/* küçük pencere (kısayol) */
+body.mini .shell { border-radius: 18px; }
+body.mini header { height: 34px; }
+body.mini .brand { font-size: 11px; }
+body.mini .hero, body.mini .hint, body.mini #banner, body.mini .sugs, body.mini .sheet { display: none; }
+body.mini .feed { padding-top: 0; }
+body.mini .feed > :not(:nth-last-child(-n+2)) { display: none; }   /* yalnız son iki mesaj */
+body.mini .empty { font-size: 12px; }
+.mini-only { display: none; }
+body.mini .mini-only { display: grid; }
+body.mini .full-only { display: none; }
+
+/* ayarlar */
+.sheet { position: absolute; inset: 44px 0 0 0; z-index: 5; background: var(--glass); backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px); transform: translateY(102%); transition: transform .38s cubic-bezier(.2,.8,.2,1);
+  overflow-y: auto; padding: 4px 18px 22px; scrollbar-width: none; border-top: 0.5px solid var(--line); }
+.sheet::-webkit-scrollbar { display: none; }
+body.settings .sheet { transform: none; }
+.sheet h3 { font-size: 11px; letter-spacing: .12em; color: var(--faint); font-weight: 600; margin: 18px 2px 8px; }
+.opt { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--card);
+  margin-bottom: 6px; cursor: default; transition: box-shadow .2s; }
+.opt.sel { box-shadow: 0 0 0 1.5px var(--accent) inset; }
+.opt .n { font-weight: 600; } .opt .d { color: var(--dim); font-size: 12px; flex: 1; }
+.opt i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
+.opt i.on { background: var(--ok); box-shadow: 0 0 6px var(--ok); } .opt i.wait { background: var(--warn); }
+.play { width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--field); color: var(--text);
+  display: grid; place-items: center; cursor: default; }
+.play svg { width: 12px; height: 12px; }
+.keyrow { display: flex; gap: 8px; }
+.keyrow input { flex: 1; height: 36px; border-radius: 10px; border: 0; outline: 0; padding: 0 12px; background: var(--field);
+  color: var(--text); font: inherit; font-size: 13px; user-select: text; -webkit-user-select: text; }
+.keyrow button { height: 36px; padding: 0 14px; border-radius: 10px; border: 0; background: var(--accent); color: #fff;
+  font: inherit; font-weight: 600; cursor: default; }
+.note { font-size: 12px; color: var(--dim); margin: 6px 2px 0; line-height: 1.5; }
+.note a { color: var(--accent); text-decoration: none; }
 </style>
 </head>
 <body data-state="idle">
@@ -154,7 +206,21 @@ body.busy .stopb { display: grid; }
     </div>
     <div class="brand pywebview-drag-region">JARVIS</div>
     <button class="icon-btn" id="spk" title="Yanıtları sesli oku" onclick="toggleSpeak()"></button>
+    <button class="icon-btn mini-only" title="Büyüt" onclick="api('expand')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+    </button>
+    <button class="icon-btn" id="gear" title="Ayarlar" onclick="toggleSettings()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
   </header>
+
+  <section class="sheet" id="sheet">
+    <h3>SES</h3><div id="voices"></div>
+    <h3>BEYİN</h3><div id="brains"></div><p class="note" id="usage"></p>
+    <h3>GEMİNİ ANAHTARI</h3>
+    <div class="keyrow"><input id="key" type="password" placeholder="AIza… yapıştır" autocomplete="off" spellcheck="false"><button onclick="saveKey()">Kaydet</button></div>
+    <p class="note" id="keynote">Ücretsiz: <a href="#" onclick="api('send','https://aistudio.google.com/apikey adresini aç');return false">aistudio.google.com/apikey</a>. Jarvis'i hızlandırır, ekranı görmesini sağlar. Claude tokeni harcanmaz.</p>
+  </section>
 
   <section class="hero pywebview-drag-region">
     <div class="orb"><div class="b b1"></div><div class="b b2"></div><div class="b b3"></div><div class="b b4"></div><div class="core"></div></div>
@@ -163,7 +229,15 @@ body.busy .stopb { display: grid; }
   </section>
 
   <main class="feed" id="feed">
-    <div class="empty" id="empty">Bir şey söyle ya da yaz.<br><b>“İndirilenlerde kaç PDF var?”</b><br><b>“CachyOS'ta tarih projesinin testlerini çalıştır”</b><br><b>“Sesi 30 yap”</b></div>
+    <div class="empty" id="empty">Bir şey söyle ya da yaz.
+      <div class="sugs">
+        <button class="sug">İndirilenlerde kaç PDF var?</button>
+        <button class="sug">Trendyol'da en ucuz orijinal EarPods'u bul</button>
+        <button class="sug">Bugün ne yapsam, bir fikir ver</button>
+        <button class="sug">Zorin'de tarih projesinin testlerini çalıştır</button>
+        <button class="sug">Sesi 30 yap</button>
+      </div>
+    </div>
   </main>
 
   <footer>
@@ -195,7 +269,7 @@ let speak = true, task = null, asks = {}, statusText = null;
 
 function api(name, ...a) { return window.pywebview && window.pywebview.api[name](...a); }
 function scroll() { feed.scrollTo({ top: feed.scrollHeight, behavior: "smooth" }); }
-function add(el) { $("empty")?.remove(); feed.appendChild(el); scroll(); document.body.classList.toggle("compact", feed.children.length > 3); return el; }
+function add(el) { $("empty")?.remove(); document.body.classList.remove("settings"); feed.appendChild(el); scroll(); document.body.classList.toggle("compact", feed.children.length > 3); return el; }
 function el(cls, text) { const d = document.createElement("div"); d.className = cls; if (text != null) d.textContent = text; return d; }
 function setState(s) { document.body.dataset.state = s; $("status").textContent = statusText && s === "thinking" ? statusText : (STATUS[s] || ""); }
 
@@ -235,14 +309,18 @@ window.jarvis = {
       task = null; markActive(null); statusText = null; document.body.classList.remove("busy");
     }
     else if (type === "ask") {
-      const a = add(el("ask")), p = document.createElement("p"); p.textContent = d.question;
+      const pay = /^Ödeme adımı/.test(d.question);
+      const a = add(el(pay ? "ask pay" : "ask")), p = document.createElement("p"); p.textContent = d.question;
+      if (pay) a.append(el("tag", "ÖDEME ONAYI"));
       const row = el("row"), y = document.createElement("button"), n = document.createElement("button");
-      y.className = "yes"; y.textContent = "Evet"; y.onclick = () => answer("evet");
+      y.className = "yes"; y.textContent = pay ? "Onayla ve öde" : "Evet"; y.onclick = () => answer("evet");
       n.className = "no"; n.textContent = "Hayır"; n.onclick = () => answer("hayır");
       row.append(n, y); a.append(p, row); asks[d.id] = a; inp.placeholder = "Cevabını yaz…";
     }
     else if (type === "ask_done") { asks[d.id]?.classList.add("closed"); delete asks[d.id]; inp.placeholder = "JARVIS'e yaz…"; }
     else if (type === "machines") machines(d.list);
+    else if (type === "mini") { document.body.classList.toggle("mini", d.on); if (d.on) toggleSettings(false); scroll(); }
+    else if (type === "focus") inp.focus();
     else if (type === "voice") { $("mic").classList.toggle("off", !d.ok); $("mic").title = d.ok ? "Dinle" : d.text; hint(); }
   }
 };
@@ -254,15 +332,66 @@ function toggleSpeak() { speak = !speak; $("spk").innerHTML = speak ? SPK_ON : S
 let hotkey = "cmd+shift+j";
 function hint() { $("hint").textContent = $("mic").classList.contains("off") ? "Ses kapalı · yazarak kullan" : `“Hey Jarvis” de ya da ${hotkey.replace(/\+/g, " ").replace("cmd", "⌘").replace("shift", "⇧")}`; }
 
+// ---- ayarlar ----
+const PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>';
+async function toggleSettings(force) {
+  if (force !== false && document.body.classList.contains("mini")) await api("expand");   // ayarlar büyük pencerede
+  const on = force ?? !document.body.classList.contains("settings");
+  document.body.classList.toggle("settings", on);
+  if (on) renderSettings(await api("settings"));
+}
+function renderSettings(st) {
+  const vs = $("voices"); vs.innerHTML = "";
+  for (const v of st.voices) {
+    const o = el("opt" + (v.id === st.voice ? " sel" : "")), n = el("n", v.name), d = el("d", v.desc), b = document.createElement("button");
+    b.className = "play"; b.innerHTML = PLAY; b.title = "Dinle";
+    b.onclick = e => { e.stopPropagation(); api("preview_voice", v.id); };
+    o.onclick = async () => { if (await api("set_voice", v.id)) renderSettings({ ...st, voice: v.id }); };
+    o.append(n, d, b); vs.appendChild(o);
+  }
+  const bs = $("brains"); bs.innerHTML = "";
+  for (const b of st.brains) {
+    const o = el("opt"), i = document.createElement("i");
+    i.className = !b.key ? "" : b.wait_s ? "wait" : "on";
+    const txt = !b.key ? "anahtar yok" : b.wait_s ? `kota doldu · ${Math.ceil(b.wait_s / 60)} dk` : (st.active.startsWith(b.name) ? "şu an kullanılıyor" : "hazır");
+    o.append(i, el("n", b.name === "yerel" ? "Yerel model" : b.name[0].toUpperCase() + b.name.slice(1)), el("d", txt)); bs.appendChild(o);
+  }
+  $("usage").textContent = `Bugün ${st.today} bulut isteği` + (st.cap ? ` / ${st.cap} (dolunca yalnız yerel model; ücretsiz katman, para çekilmez)` : "");
+  $("key").placeholder = st.gemini ? "Kayıtlı ✓ — değiştirmek için yapıştır" : "AIza… yapıştır";
+  banner(!st.gemini);
+}
+async function saveKey() {
+  const k = $("key").value.trim(); if (!k) return;
+  $("keynote").textContent = "Deneniyor…";
+  const r = await api("set_key", k);
+  $("keynote").textContent = r === "ok" ? "Gemini bağlandı. Artık daha hızlı ve ekranı görebiliyorum." : r;
+  $("key").value = ""; renderSettings(await api("settings"));
+}
+function banner(show) {
+  $("banner")?.remove();
+  if (!show) return;
+  const b = el("banner"); b.id = "banner";
+  b.innerHTML = '<b>⚡</b><span>Gemini anahtarı yok, yavaş yerel model çalışıyor.</span><span class="go">Ekle</span>';
+  b.onclick = () => toggleSettings(true);
+  feed.prepend(b);
+}
+document.querySelectorAll(".sug").forEach(b => b.onclick = () => { api("send", b.textContent); });
+
 inp.addEventListener("input", () => $("send").classList.toggle("show", !!inp.value.trim()));
 inp.addEventListener("keydown", e => { if (e.key === "Enter") send(); if (e.key === "Escape" && task) api("stop"); });
-document.addEventListener("keydown", e => { if (document.activeElement !== inp && e.key.length === 1 && !e.metaKey) inp.focus(); });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (document.body.classList.contains("settings")) toggleSettings(false);
+  else if (document.body.classList.contains("mini") && !task) api("hide");
+});
+document.addEventListener("keydown", e => { if (document.activeElement?.tagName !== "INPUT" && e.key.length === 1 && !e.metaKey) inp.focus(); });
 
 window.addEventListener("pywebviewready", async () => {
   const h = await api("hello");
   speak = !h.speak; toggleSpeak(); hotkey = h.hotkey; machines(h.machines);
   if (h.voice) { $("mic").title = h.voice; }
   hint(); inp.focus();
+  const st = await api("settings"); banner(!st.gemini);
 });
 $("spk").innerHTML = SPK_ON;
 </script>

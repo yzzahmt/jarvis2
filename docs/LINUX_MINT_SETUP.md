@@ -1,8 +1,8 @@
 # Linux Mint ajanı (tarayıcı/YouTube)
 ## Betiği aktarma (iki makine için de)
-Mac'te bir kerelik geçici sunucu (yalnızca kurulum süresince, sonra Ctrl+C):
-`python3 -m http.server 8799 --bind 192.168.1.31 --directory /Volumes/HDD/projeler/projeler/Jarvis/data/serve`
-Linux'ta: `curl -fsS http://192.168.1.31:8799/setup.sh -o /tmp/setup.sh && bash /tmp/setup.sh mint`
+Geçici sunucu yalnızca kurulum süresince açık kalır (sonra Ctrl+C).
+
+Mac'te `scripts/serve_setup.sh` çalıştır; ekrana yazdığı satırı Linux'ta çalıştır (sondaki zorin yerine mint).
 (Sunucuda yalnızca kurulum betiği, açık anahtar ve browser.py var; gizli bilgi yok.)
 
 ## Adımlar

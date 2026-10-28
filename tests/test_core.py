@@ -15,7 +15,7 @@ from tests.conftest import MACHINES, FakeAgent, FakeLLM
     ("uyku moduna geç", "sleep", "mac"),
     ("bilgisayarlar çevrimiçi mi", "status", "mac"),
     ("Linux Mint bilgisayarında YouTube'u aç ve lofi müzik videosunu bul", "youtube", "mint"),
-    ("CachyOS bilgisayarında tarih projesinin testlerini çalıştır", "run_tests", "cachyos"),
+    ("Zorin OS bilgisayarında tarih projesinin testlerini çalıştır", "run_tests", "zorin"),
     ("Safari'yi aç", "open_app", "mac"),
     ("ikinci videoyu aç", "pick_result", "mint"),
     ("github.com aç", "open_url", "mac"),
@@ -27,7 +27,7 @@ def test_rules(text, name, machine):
 
 def test_youtube_query_and_project():
     assert route("Linux Mint bilgisayarında YouTube'u aç ve lofi müzik videosunu bul", MACHINES).args["query"] == "lofi müzik"
-    assert route("cachyos'ta tarih projesinin testlerini çalıştır", MACHINES).args["project"] == "tarih"
+    assert route("zorin'de tarih projesinin testlerini çalıştır", MACHINES).args["project"] == "tarih"
     assert route("Safari'yi aç", MACHINES).args["app"] == "safari"
 
 
@@ -71,27 +71,27 @@ def test_disallowed_app(make):
 
 
 def test_offline_machine(make):
-    j = make(agents={"mac": FakeAgent(), "cachyos": FakeAgent(online=False), "mint": FakeAgent()})
-    assert "çevrimdışı" in j.handle("cachyos tarih projesinin testlerini çalıştır")
+    j = make(agents={"mac": FakeAgent(), "zorin": FakeAgent(online=False), "mint": FakeAgent()})
+    assert "çevrimdışı" in j.handle("zorin tarih projesinin testlerini çalıştır")
     assert j.tm.list(1)[0]["status"] == FAILED
 
 
 def test_sensitive_needs_confirm(make):
     j = make()
-    r = j.handle("cachyos'ta eski log dosyalarını sil, kodu düzelt")
-    assert "onay" in r.lower() and j.agents["cachyos"].calls == []
+    r = j.handle("zorin'de eski log dosyalarını sil, kodu düzelt")
+    assert "onay" in r.lower() and j.agents["zorin"].calls == []
     assert "iptal" in j.handle("hayır").lower()
     assert j.tm.list(1)[0]["status"] == STOPPED
 
 
 def test_run_tests_and_dedupe(make):
     out = "..F\n==== 1 failed, 2 passed in 0.1s ===="
-    cachy = FakeAgent(handler=lambda c: Result(False, out, "", 1))
-    j = make(agents={"mac": FakeAgent(), "cachyos": cachy, "mint": FakeAgent()})
-    r = j.handle("cachyos tarih projesinin testlerini çalıştır")
-    assert "1 failed, 2 passed" in r and '"$HOME"/' in cachy.calls[0]
-    assert "tekrar" in j.handle("cachyos tarih projesinin testlerini çalıştır")
-    assert len(cachy.calls) == 1   # ikinci kez onaysız çalışmadı
+    zorin = FakeAgent(handler=lambda c: Result(False, out, "", 1))
+    j = make(agents={"mac": FakeAgent(), "zorin": zorin, "mint": FakeAgent()})
+    r = j.handle("zorin tarih projesinin testlerini çalıştır")
+    assert "1 failed, 2 passed" in r and '"$HOME"/' in zorin.calls[0]
+    assert "tekrar" in j.handle("zorin tarih projesinin testlerini çalıştır")
+    assert len(zorin.calls) == 1   # ikinci kez onaysız çalışmadı
 
 
 def test_fix_loop_is_bounded(make):
@@ -99,18 +99,18 @@ def test_fix_loop_is_bounded(make):
         if "command -v gemini" in c or "gemini -p" in c:
             return Result(True)
         return Result(False, "==== 1 failed in 0.1s ====", "", 1)
-    cachy = FakeAgent(handler=h)
-    j = make(agents={"mac": FakeAgent(), "cachyos": cachy, "mint": FakeAgent()})
-    j.db.remember("proje:cachyos", "tarih", kind="project")
-    r = j.handle("cachyos'ta login fonksiyonundaki hatayı düzelt")
+    zorin = FakeAgent(handler=h)
+    j = make(agents={"mac": FakeAgent(), "zorin": zorin, "mint": FakeAgent()})
+    j.db.remember("proje:zorin", "tarih", kind="project")
+    r = j.handle("zorin'de login fonksiyonundaki hatayı düzelt")
     assert "düzeltme denendi" in r
-    assert sum("gemini -p" in c for c in cachy.calls) == 3   # ilk + 2 düzeltme
+    assert sum("gemini -p" in c for c in zorin.calls) == 3   # ilk + 2 düzeltme
 
 
 def test_youtube_flow(make):
     res = [{"title": f"Video {n}", "url": f"https://youtu.be/{n}"} for n in range(5)]
     mint = FakeAgent(handler=lambda c: Result(True, json.dumps({"ok": True, "results": res})))
-    j = make(agents={"mac": FakeAgent(), "cachyos": FakeAgent(), "mint": mint})
+    j = make(agents={"mac": FakeAgent(), "zorin": FakeAgent(), "mint": mint})
     assert "Hangisini" in j.handle("mint'te youtube'da lofi ara")
     assert "Video 1" in j.handle("ikinci videoyu aç") and "youtu.be/1" in mint.calls[-1]
 

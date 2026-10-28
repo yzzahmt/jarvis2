@@ -1,5 +1,5 @@
 JARVIS — DEVAM NOTU (yeni bir yapay zekâ oturumu buradan başlasın)
-Son güncelleme: 28.10.2026
+Son güncelleme: 28.10.2026 (014)
 ==========================================================================
 
 YENİ OTURUMA İLK MESAJ OLARAK ŞUNU YAZ:
@@ -17,7 +17,7 @@ kişisel asistan. İstenenler:
 - KULLANIRKEN Claude tokeni harcamamak. (Geliştirirken Claude kullanılabilir.) Beyin: ücretsiz Gemini → Groq →
   Cerebras → OpenRouter → yerel qwen3:8b (Ollama). Claude hiç çağrılmaz.
 
-Makineler: MacBook M3 16 GB (ana/kontrol) + CachyOS (kod/test, SSH) + Linux Mint (otomasyon/YouTube, SSH).
+Makineler: MacBook M3 16 GB (ana/kontrol) + Zorin OS (kod/test, SSH; eskiden CachyOS'tu) + Linux Mint (otomasyon/YouTube, SSH).
 
 --------------------------------------------------------------------------
 2) KURALLAR (her oturumda uy)
@@ -38,6 +38,7 @@ Makineler: MacBook M3 16 GB (ana/kontrol) + CachyOS (kod/test, SSH) + Linux Mint
     /Volumes/HDD/Projeler/Projeler/Jarvis/scripts/jarvis.sh          # arayüz + ses (varsayılan)
     /Volumes/HDD/Projeler/Projeler/Jarvis/scripts/jarvis.sh text     # yazarak konuşma
     /Volumes/HDD/Projeler/Projeler/Jarvis/scripts/jarvis.sh status   # bağlantı durumu
+- Arayüzde dişli simgesi: ses seçimi, beyin durumu, Gemini anahtarını yapıştırma.
 - Çalışırken: Cmd+Shift+J = uyandır / sözünü kes, Cmd+Shift+M = mikrofon aç/kapat, ya da "hey jarvis".
 - Kasaya şifre ekleme: source scripts/env.sh && python -m jarvis secret set trendyol.com:email
                       (ayrıca: secret set site.com:sifre | secret list | secret del ad)
@@ -56,7 +57,7 @@ jarvis/automation/session.py Görünür Playwright tarayıcısı (oturumlar data
                             numaralı öğe listesi, fill_secret, save_secret, ödeme/hesap tanıma
 jarvis/secrets.py           macOS Anahtar Zinciri kasası (servis "jarvis"); model şifreleri/anahtarları GÖRMEZ
 jarvis/brains.py, llm.py    Çoklu ücretsiz beyin + yerel Ollama; görme (vision) yalnızca Gemini, yoksa gemma3
-jarvis/voice/               STT faster-whisper large-v3-turbo, TTS Edge (Ava), uyandırma, alkış
+jarvis/voice/               STT Gemini (yedek yerel whisper), TTS Edge akış (Emel/Ava), uyandırma, alkış
 jarvis/ui/                  Masaüstü arayüzü (JARVIS.app bunu açar)
 config/settings.yaml        Tüm ayarlar (ses, beyinler, bütçe, izinler)
 config/machines.yaml        Linux makinelerinin IP/kullanıcıları (henüz boş)
@@ -74,7 +75,7 @@ tutarla sorulur; hesap oluşturma → sorulur; kart/CVV/IBAN alanına yazmak yas
 - Çekirdek: görev yöneticisi, bütçe/sonsuz döngü koruması, onay sistemi, SQLite hafıza.
 - Ses: Türkçe ses tanıma, "hey jarvis", çift alkış, sözü kesme.
 - Tarayıcı + YouTube; Linux ajanları için SSH altyapısı ve setup.sh (makinelerde henüz çalıştırılmadı).
-- Kodlama ajanı: Gemini CLI / Aider (CachyOS'ta). Genel ajan + beceri belleği + makrolar. Masaüstü arayüzü, JARVIS.app.
+- Kodlama ajanı: Gemini CLI / Aider (Zorin OS'ta). Genel ajan + beceri belleği + makrolar. Masaüstü arayüzü, JARVIS.app.
 - Çoklu ücretsiz beyin (kota bitince sıradakine geçer).
 - 28.10.2026 (yenilikler/009, 010):
   * Tam bilgisayar kontrolü: click_on (ekranı Gemini ile görüp tarif edilen yere tıklar), mouse (kaydır/sürükle).
@@ -89,11 +90,13 @@ tutarla sorulur; hesap oluşturma → sorulur; kart/CVV/IBAN alanına yazmak yas
 6) NEREDE KALDIK / SIRADAKİ ADIMLAR
 --------------------------------------------------------------------------
 Kullanıcının yapması gerekenler:
-  [ ] Ücretsiz Gemini anahtarı: https://aistudio.google.com/apikey → Jarvis/.env içine GEMINI_API_KEY=...
+  [x] Gemini anahtarı .env'de (28.10, kullanıcının AI Studio'daki ücretsiz anahtarı). Model: gemini-3.5-flash-lite.
+      Model adları değişiyor: 404 alırsan /v1beta/models listesinden yenisini seç (settings.yaml brains + stt_cloud_model).
       (Bu olmadan ekran görme ve Türkçe kalite zayıf; yerel modele kalır.)
   [ ] Sistem Ayarları > Gizlilik ve Güvenlik: Erişilebilirlik + Ekran Kaydı + Mikrofon izni → JARVIS.app (ve Terminal).
   [ ] Sık kullanılan sitelere Jarvis'in açtığı tarayıcıda bir kez giriş yap (oturum kalır) veya kasaya ekle.
-  [ ] Linux makinelerinde setup.sh (docs/CACHYOS_SETUP.md, docs/LINUX_MINT_SETUP.md); çıktıyı Claude'a ver →
+  [ ] Zorin OS kurulumu: docs/ZORIN_SETUP.md (Mac'te scripts/serve_setup.sh → yazdığı satırı Zorin'de çalıştır).
+  [ ] Linux makinelerinde setup.sh (docs/ZORIN_SETUP.md, docs/LINUX_MINT_SETUP.md); çıktıyı Claude'a ver →
       config/machines.yaml doldurulur.
 
 Anahtar gelince Claude'un yapacakları (sırayla):
@@ -103,6 +106,20 @@ Anahtar gelince Claude'un yapacakları (sırayla):
   3. Sorunlara göre talimat/araç düzeltmeleri, yenilikler/ notu, PROGRESS.md güncellemesi.
   4. Git: https://github.com/yzzahmt/jarvis2 (main, HERKESE AÇIK). Eski JS projesi 'eski-js' dalında yedekli.
      Commit mesajlarında yapay zekâ satırı yok.
+
+Performans (11, 28.10.2026): Jarvis donuyordu → pencere kapanınca süreç asılı kalıyordu (os._exit eklendi),
+qwen3:8b + whisper 16 GB'ı dolduruyordu (yedek model qwen3:4b'ye indirildi), yönlendirme artık önce bulutta.
+
+Hız (12): beyin + ses tanıma + görme Gemini'de (~1-3 sn). Gemini 3 araç çağrılarında thought_signature geri
+gönderilmeli (llm.py ToolCall.extra) — yoksa her şey yavaş yerel modele düşer. Uyandırma eşiği 0,35, alkış 0,3
+(kullanıcının sesiyle ölçüldü). Mac'i kasan şey Unity'nin sahipsiz VBCSCompiler süreciydi.
+
+Ses (13): cevap tek Edge akışıyla mpg123'e (cümle arası boşluk yok); kısa cümleler data/tts-cache'te.
+Sohbet tek Gemini çağrısı (yönlendirici cevabı da yazar). Ses şu an Emel, hız +%10 (arayüz > dişli > Ses).
+
+Kota (14): günde en çok 300 bulut isteği (settings budget.max_cloud_calls_per_day), sonra yerel.
+İkinci Gemini anahtarı .env'de GEMINI_API_KEY_2 (beyin 'gemini-2'). Mini Jarvis: '<' + 'z' birlikte (voice.quick_keys).
+Testler: 51 geçiyor. 011-014 commit edildi ve GitHub'a gönderildi (28.10.2026).
 
 Bilinen sorunlar:
 - CAPTCHA ve SMS kodunu Jarvis geçemez; kullanıcıya sorar.

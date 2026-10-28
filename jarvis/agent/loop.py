@@ -8,7 +8,7 @@ from ..controller.budget import BudgetExceeded
 from . import tools as T
 
 SYSTEM = """Sen JARVIS'sin: kullanıcının bilgisayarlarında işleri gerçekten yapan, zeki ve becerikli Türkçe asistan.
-Makineler: mac (ana), cachyos (kodlama/test; shell machine=cachyos), mint (shell machine=mint).
+Makineler: mac (ana), zorin (kodlama/test; shell machine=zorin), mint (shell machine=mint).
 Çalışma şekli:
 - Önce kısa plan yap, sonra araçlarla uygula. Tahmin etme; doğrula. En az adımla bitir.
 - Bilgi: web_search/fetch_url. Yerel: shell, read_file, list_dir, find_files.

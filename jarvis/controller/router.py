@@ -81,9 +81,9 @@ def route(text: str, machines: dict) -> Intent | None:
         return Intent("open_url", {"url": url if url.startswith("http") else "https://" + url}, machine=m())
     if re.search(r"\btest\S*\b.*\b(çalıştır|koş|başlat|yap)", t):
         proj = re.search(r"(\S+) (projesi|projesinin|projemin|klasör)", t)
-        return Intent("run_tests", {"project": proj.group(1) if proj else None}, machine=m("cachyos"))
+        return Intent("run_tests", {"project": proj.group(1) if proj else None}, machine=m("zorin"))
     if re.search(r"\b(kod|hata\S* düzelt|düzelt|refactor|fonksiyon|geliştir|bug)\b", t):
-        return Intent("code", {"task": text}, machine=m("cachyos"))
+        return Intent("code", {"task": text}, machine=m("zorin"))
     mm = re.match(r"^(.+?)(?:'?(?:yi|yı|yu|yü|i|ı|u|ü))?(?: uygulamasını| programını)? (aç|başlat)$", t)
     if mm:
         return Intent("open_app", {"app": _strip_machine(mm.group(1), machines)}, machine=m())
@@ -92,24 +92,28 @@ def route(text: str, machines: dict) -> Intent | None:
 
 LLM_SYSTEM = (
     "Sen JARVIS adlı Türkçe asistanın komut ayrıştırıcısısın. Kullanıcı cümlesini şu JSON'a çevir: "
-    '{"intent": <' + "|".join(INTENTS) + '>, "args": {...}, "machine": "mac|cachyos|mint", '
+    '{"intent": <' + "|".join(INTENTS) + '>, "args": {...}, "machine": "mac|zorin|mint", '
     '"reply": "<sadece intent chat ise kısa Türkçe yanıt>"}. '
     "args: youtube->{query}, open_app->{app}, open_url->{url}, run_tests->{project}, code->{task}, agent->{task}. "
     "agent: bilgisayarda iş yapmayı gerektiren ama diğer intentlere uymayan her istek (dosya bulma/düzenleme, "
     "web'de araştırma, uygulama veya ayar kontrolü, çok adımlı işler). Sohbet ve bilgi sorusu chat'tir. "
-    "cachyos: kodlama/test makinesi, mint: tarayıcı/YouTube makinesi, varsayılan mac. "
+    "zorin: kodlama/test makinesi, mint: tarayıcı/YouTube makinesi, varsayılan mac. "
     "Şarkı/müzik/video çalma veya izleme her zaman youtube'dur. open_app yalnızca uygulama adı içindir. Örnekler: "
     '"tarkanın son şarkısını çal" -> {"intent":"youtube","args":{"query":"tarkan son şarkı"},"machine":"mint"}; '
-    '"oyunumdaki hatayı düzelt" -> {"intent":"code","args":{"task":"oyundaki hatayı düzelt"},"machine":"cachyos"}; '
+    '"oyunumdaki hatayı düzelt" -> {"intent":"code","args":{"task":"oyundaki hatayı düzelt"},"machine":"zorin"}; '
     '"masaüstündeki pdfleri listele" -> {"intent":"agent","args":{"task":"masaüstündeki pdf dosyalarını listele"},"machine":"mac"}; '
     '"nasılsın" -> {"intent":"chat","args":{},"machine":"mac","reply":"İyiyim, teşekkürler."}. Sadece JSON yaz.')
 
 
-def route_llm(text: str, llm) -> Intent:
-    d = llm.json([{"role": "system", "content": LLM_SYSTEM}, {"role": "user", "content": text}])
+def route_llm(text: str, llm, history=(), persona="") -> Intent:
+    """history + persona verilirse chat cevabı (reply) aynı çağrıda tam Jarvis cevabıdır: ikinci çağrı gerekmez."""
+    sys = LLM_SYSTEM + (" intent chat ise reply alanına kullanıcıya verilecek ASIL cevabı yaz, şu kişilikle: " + persona
+                        if persona else "")
+    ctx = [{"role": m["role"], "content": str(m["content"])[:400]} for m in history]
+    d = llm.json([{"role": "system", "content": sys}, *ctx, {"role": "user", "content": text}], max_tokens=500)
     name = d.get("intent") if d.get("intent") in INTENTS else "chat"
     args = d.get("args") or {}
     if name == "chat" and d.get("reply"):
         args["reply"] = d["reply"]
-    mach = d.get("machine") if d.get("machine") in ("mac", "cachyos", "mint") else "mac"
+    mach = d.get("machine") if d.get("machine") in ("mac", "zorin", "mint") else "mac"
     return Intent(name, args, mach, source="yerel-model")

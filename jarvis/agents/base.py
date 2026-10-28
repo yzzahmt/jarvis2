@@ -80,8 +80,8 @@ class SSHAgent:
                 "-o", "ServerAliveInterval=15", f"{self.user}@{self.host}", remote]
 
     def run(self, cmd: str, timeout=60, stop=None) -> Result:
-        # Uzak kabuk fish olabilir (CachyOS); komutu her zaman bash'e ver.
-        cmd = 'export PATH="$HOME/.local/bin:$PATH"; ' + cmd   # gemini-cli ~/.local/bin'de
+        # Uzak kabuk fish/zsh olabilir; komutu her zaman bash'e ver.
+        cmd = 'export PATH="$HOME/.local/bin:$HOME/.local/node/bin:$PATH"; ' + cmd   # gemini-cli ve Node (Zorin) ~/.local altında
         return _exec(self.ssh_argv("bash -lc " + shlex.quote(cmd)), timeout, stop)
 
     def copy(self, local: str, remote: str, timeout=60) -> Result:

@@ -31,7 +31,7 @@ TOOL_GATED = {"agent", "macro"}  # onay her araç adımında ayrıca sorulur; ba
 GUNLER = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
 AYLAR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül",
          "Ekim", "Kasım", "Aralık"]
-NAMES = {"mac": "Mac", "cachyos": "CachyOS", "mint": "Linux Mint"}
+NAMES = {"mac": "Mac", "zorin": "Zorin OS", "mint": "Linux Mint"}
 TEST_CMD = ("set -o pipefail; if [ -f pyproject.toml ] || [ -f pytest.ini ] || [ -d tests ]; then "
             "(python -m pytest -q 2>&1 || python3 -m pytest -q 2>&1) | tail -n 40; "
             "elif [ -f package.json ]; then npm test 2>&1 | tail -n 40; else echo JARVIS_NO_TESTS; exit 3; fi")
@@ -48,7 +48,8 @@ class Jarvis:
         self.llm = llm or Ollama(self.s.get("llm", {}))
         self.agents = agents if agents is not None else build_agents(self.machines)
         self.coder = Coder(self.s.get("coder", {}))
-        self.brains = Brains(self.s["brains"], self.db) if self.s.get("brains") else None
+        self.brains = Brains(self.s["brains"], self.db, self.s.get("budget", {}).get("max_cloud_calls_per_day", 0)) \
+            if self.s.get("brains") else None
         self.history: deque = deque(maxlen=8)   # sohbet bağlamı (son 4 soru-cevap)
         self.agent_cfg = self.s.get("agent", {})
         self.skills = Skills(self.db, config.path(self.agent_cfg.get("macros", "config/macros.yaml")))
@@ -85,10 +86,18 @@ class Jarvis:
             return self._task(text, Intent("macro", {"name": macro["name"], "vars": mvars}), say)
         intent = route(text, self.machines)
         if intent is None:
-            try:
-                intent = route_llm(text, self.llm)
-            except LLMError:
-                return "Bunu anlayamadım ve yerel model yanıt vermedi. Daha kısa söyler misin?"
+            intent = None
+            for llm in dict.fromkeys([self._agent_llm(), self.llm]):   # bulut varsa önce o (1-2 sn, RAM yormaz)
+                try:
+                    cloud = getattr(llm, "is_cloud", False)
+                    intent = route_llm(text, llm, list(self.history)[-4:] if cloud else (),
+                                       self.CHAT_SYSTEM.format(date=f"{dt.date.today():%d.%m.%Y}") if cloud else "")
+                    intent.args["full_reply"] = cloud
+                    break
+                except LLMError:
+                    continue
+            if intent is None:
+                return "Bunu anlayamadım, yapay zekâ da yanıt vermedi. Daha kısa söyler misin?"
         if intent.name == "chat":
             intent.args.setdefault("text", text)
         if intent.name == "agent":       # yönlendiricinin yeniden yazımı yolları bozabilir; asıl cümle verilir
@@ -218,8 +227,10 @@ class Jarvis:
     def do_chat(self, i):
         text = i.args.get("text", "")
         llm = self._agent_llm()
-        if llm is self.llm and i.args.get("reply"):      # bulut yoksa yönlendiricinin hazır cevabı yeter
-            return i.args["reply"]
+        if i.args.get("reply") and (llm is self.llm or i.args.get("full_reply")):   # yönlendirici zaten cevapladı
+            reply = i.args["reply"]
+            self.history.extend([{"role": "user", "content": text}, {"role": "assistant", "content": reply}])
+            return reply
         msgs = [{"role": "system", "content": self.CHAT_SYSTEM.format(date=f"{dt.date.today():%d.%m.%Y}")},
                 *self.history, {"role": "user", "content": text}]
         try:

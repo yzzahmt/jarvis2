@@ -22,7 +22,7 @@ def load16k(path):
 
 from piper import PiperVoice  # noqa: E402
 v = PiperVoice.load(str(config.path("data/tts/tr_TR-dfki-medium.onnx")))
-cümle = "CachyOS bilgisayarında testleri çalıştır"
+cümle = "Zorin OS bilgisayarında testleri çalıştır"
 with wave.open(str(TMP / "tts.wav"), "wb") as w:
     v.synthesize_wav(cümle, w)
 from jarvis.voice.speech_to_text import STT  # noqa: E402

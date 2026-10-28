@@ -107,3 +107,26 @@ def test_sentences_merge_short():
     assert sentences("Tamam. Hallettim. Sepete ekledim, ödeme adımında onayını bekliyorum.") == \
         ["Tamam. Hallettim. Sepete ekledim, ödeme adımında onayını bekliyorum."]
     assert len(sentences("Bu birinci uzunca cümledir ve kırk karakteri geçer. Bu da ikinci uzunca cümledir tamam mı.")) == 2
+
+
+def test_gemini_thought_signature_round_trip(monkeypatch):
+    from jarvis.llm import OpenAICompat
+    sig = {"google": {"thought_signature": "imza"}}
+    monkeypatch.setattr(OpenAICompat, "_post", lambda self, body: {"content": "", "tool_calls": [
+        {"id": "c1", "type": "function", "function": {"name": "shell", "arguments": "{}"}, "extra_content": sig}]})
+    b = OpenAICompat({"name": "g", "base_url": "https://x", "model": "m", "api_key_env": "PATH"})
+    rep = b.chat_tools([], [])
+    assert b.assistant_msg(rep)["tool_calls"][0]["extra_content"] == sig
+
+
+def test_daily_cloud_cap_falls_back_to_local(tmp_path, monkeypatch):
+    import time
+    from jarvis import brains as B
+    from jarvis.memory.db import DB
+    db = DB(tmp_path / "a.db")
+    monkeypatch.setenv("K", "1")
+    br = B.Brains([{"name": "g", "base_url": "https://g", "model": "m", "api_key_env": "K"},
+                   {"name": "yerel", "base_url": "http://127.0.0.1:11434/v1", "model": "q"}], db, daily_cap=2)
+    assert [b.name for b in br.ready()] == ["g", "yerel"]
+    db.remember(f"kullanim:{time.strftime('%Y-%m-%d')}:g", 2, kind="usage")
+    assert br.today() == 2 and [b.name for b in br.ready()] == ["yerel"]

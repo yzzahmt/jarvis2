@@ -5,7 +5,7 @@ from jarvis.core import Jarvis
 
 MACHINES = {
     "mac": {"local": True},
-    "cachyos": {"aliases": ["cachy", "cachyos"], "host": "x", "user": "u", "project_dir": "~/projeler"},
+    "zorin": {"aliases": ["zorin os", "zorin"], "host": "x", "user": "u", "project_dir": "~/projeler"},
     "mint": {"aliases": ["mint", "linux mint"], "host": "y", "user": "u"},
 }
 SETTINGS = {
@@ -53,6 +53,6 @@ def make(tmp_path):
     def _make(agents=None, llm=None, db="j.db"):
         mac = FakeAgent()
         mac.os = "darwin"
-        ag = agents or {"mac": mac, "cachyos": FakeAgent(), "mint": FakeAgent()}
+        ag = agents or {"mac": mac, "zorin": FakeAgent(), "mint": FakeAgent()}
         return Jarvis(SETTINGS, MACHINES, tmp_path / db, llm or FakeLLM(), ag)
     return _make

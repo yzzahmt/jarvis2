@@ -2,6 +2,8 @@
 Ana pencere: web/index.html (pywebview, port açılmaz; JS <-> Python köprüsü).
 Alt çubuk: iş hangi bilgisayarda yapılıyorsa orada (overlays.py)."""
 import json
+import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -46,8 +48,26 @@ class Api:
     def minimize(self):
         self._app.win.minimize()
 
+    def settings(self):
+        return self._app.settings()
+
+    def set_voice(self, voice):
+        return self._app.set_voice(voice)
+
+    def preview_voice(self, voice):
+        self._app.preview_voice(voice)
+
+    def set_key(self, key):
+        return self._app.set_key(key)
+
     def quit(self):
         self._app.quit()
+
+    def expand(self):
+        self._app.set_mini(False)
+
+    def hide(self):
+        self._app.hide()
 
 
 class App:
@@ -157,6 +177,57 @@ class App:
         return {"machines": self.machines(), "voice": self.voice_msg, "speak": self.speak,
                 "hotkey": self.s.get("voice", {}).get("hotkey", "<cmd>+<shift>+j").replace("<", "").replace(">", "")}
 
+    VOICES = [("en-US-AvaMultilingualNeural", "Ava", "sıcak, kadın"),
+              ("en-US-AndrewMultilingualNeural", "Andrew", "sakin, erkek"),
+              ("en-US-EmmaMultilingualNeural", "Emma", "neşeli, kadın"),
+              ("en-US-BrianMultilingualNeural", "Brian", "rahat, erkek"),
+              ("tr-TR-EmelNeural", "Emel", "yerli, kadın")]
+
+    def settings(self):
+        b = self.j.brains
+        return {"voice": self.s.get("voice", {}).get("edge_voice", ""),
+                "voices": [{"id": v, "name": n, "desc": d} for v, n, d in self.VOICES],
+                "brains": b.status() if b else [], "active": getattr(b, "last_model", None) or "",
+                "gemini": bool(os.environ.get("GEMINI_API_KEY")),
+                "today": b.today() if b else 0, "cap": getattr(b, "daily_cap", 0)}
+
+    def _tts_objs(self):
+        return [t for t in (getattr(self, "tts", None), getattr(self.voice, "tts", None)) if t]
+
+    def set_voice(self, voice):
+        if voice not in {v for v, _, _ in self.VOICES}:
+            return False
+        f = config.path("config/settings.yaml")
+        txt = re.sub(r"(?m)^(\s*edge_voice:\s*)\S+", lambda m: m.group(1) + voice, f.read_text(encoding="utf-8"))
+        f.write_text(txt, encoding="utf-8")
+        self.s.setdefault("voice", {})["edge_voice"] = voice
+        for t in self._tts_objs():
+            t.edge_voice = voice
+        return True
+
+    def preview_voice(self, voice):
+        from ..voice.text_to_speech import TTS
+        t = TTS.from_settings({**self.s.get("voice", {}), "edge_voice": voice}, config.path("data"))
+        threading.Thread(target=t.speak, args=("Merhaba, ben Jarvis. Sesim böyle olacak, beğendin mi?",),
+                         daemon=True).start()
+
+    def set_key(self, key):
+        """Gemini anahtarını .env'e yazar ve beyinleri yeniden kurar (yeniden başlatmadan)."""
+        key = (key or "").strip()
+        if not re.match(r"^[\w.-]{20,120}$", key):     # eski AIza…, yeni AQ.… biçimi
+            return "Anahtar geçersiz görünüyor."
+        from .. import secrets
+        from ..brains import Brains
+        secrets.write_env(str(config.path(".env")), "GEMINI_API_KEY", key)
+        os.environ["GEMINI_API_KEY"] = key
+        self.j.brains = Brains(self.s["brains"], self.j.db, self.s.get("budget", {}).get("max_cloud_calls_per_day", 0))
+        try:
+            g = self.j.brains.all[0]                      # ilk sıradaki Gemini   # yalnız Gemini'yi dene (yerele düşmesin)
+            g.chat([{"role": "user", "content": "Sadece 'tamam' yaz."}], max_tokens=10)
+            return "ok"
+        except Exception as e:
+            return f"Kaydedildi ama Gemini yanıt vermedi: {str(e)[:120]}"
+
     def machines(self):
         out = []
         for n, a in self.j.agents.items():
@@ -243,9 +314,90 @@ class App:
             except Exception:
                 pass
 
+    # ---------------- küçük pencere (ChatGPT gibi, ekranın altında) ----------------
+    MINI = (600, 230)
+    FULL = (440, 720)
+
+    def _screen(self):
+        try:
+            sc = webview.screens[0]
+            return sc.x, sc.y, sc.width, sc.height
+        except Exception:
+            return 0, 0, 1512, 982
+
+    def set_mini(self, on):
+        x0, y0, sw, sh = self._screen()
+        self.mini = on
+        w, h = self.MINI if on else self.FULL
+        self.win.resize(w, h)
+        if on:
+            self.win.move(x0 + (sw - w) // 2, y0 + sh - h - 70)
+        else:
+            self.win.move(x0 + (sw - w) // 2, y0 + max(40, (sh - h) // 2))
+        self.push("mini", on=on)
+
+    def hide(self):
+        self.visible = False
+        self.win.hide()
+
+    def toggle_mini(self):
+        """Kısayol: gizliyse altta küçük pencereyi aç ve dinlemeye başla; açıksa gizle."""
+        if getattr(self, "visible", True) and getattr(self, "mini", False):
+            return self.hide()
+        self.set_mini(True)
+        self.win.show()
+        self.visible = True
+        try:
+            from AppKit import NSApplication
+            NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+        except Exception:
+            pass
+        self.push("focus")
+        if self.voice:
+            self.voice.tts.stop()
+            self.voice.wake_evt.set()
+
     def run(self):
         _brand()                     # AppKit ana iş parçacığında
+        _hotkey(self, self.s.get("voice", {}).get("quick_keys", "<+z"))
         webview.start(self._bg, debug=False)
+        os._exit(0)                  # pencere kapandı: tarayıcı/ses iş parçacıkları süreci asılı tutmasın
+
+
+def _hotkey(app, keys="<+z"):
+    """Genel kısayol (varsayılan '<' + 'Z' birlikte). macOS NSEvent izleyicisi: ana iş parçacığında kurulur,
+    Erişilebilirlik izni ister. Tuşlar diğer uygulamaya da gider (macOS izleyicisi engelleyemez)."""
+    try:
+        from AppKit import NSEvent
+    except Exception:
+        return
+    a, b = [k.strip().lower() for k in keys.split("+")]
+    down, last = set(), [0.0]
+    KEYDOWN, KEYUP = 1 << 10, 1 << 11
+    ISO = {10: "<", 50: "<"}           # ISO tuşu (Türkçe klavyede Z'nin solundaki '<'), bazı klavyelerde 50
+
+    def name(ev):
+        ch = (ev.charactersIgnoringModifiers() or "").lower()
+        return ISO.get(ev.keyCode(), ch) if ev.keyCode() in ISO else ch
+
+    def handle(ev):
+        try:
+            n = name(ev)
+            if ev.type() == 10:                      # NSEventTypeKeyDown
+                if n in (a, b):
+                    other = b if n == a else a
+                    if other in down and time.time() - last[0] > 0.6:
+                        last[0] = time.time()
+                        threading.Thread(target=app.toggle_mini, daemon=True).start()
+                    down.add(n)
+            else:
+                down.discard(n)
+        except Exception:
+            pass
+        return ev
+
+    NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(KEYDOWN | KEYUP, handle)
+    NSEvent.addLocalMonitorForEventsMatchingMask_handler_(KEYDOWN | KEYUP, handle)
 
 
 def _brand():

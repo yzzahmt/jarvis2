@@ -1,6 +1,9 @@
 """Türkçe sesli yanıt. Öncelik: Edge sinir ağı sesi (ücretsiz, anahtarsız, internet ister; insana yakın).
-Yedek: Piper (yerel) → macOS 'say' / Linux 'espeak-ng'. Cümle cümle üretilir: ilk cümle hazır olunca çalmaya başlar,
-o çalarken sonraki üretilir. Kesilebilir."""
+Tüm cevap TEK istekle akış olarak üretilir ve parçalar geldikçe mpg123'e verilir: cümle arası boşluk olmaz.
+Servis ilk sesi 2,5 sn'de vermezse bir kez daha denenir, olmazsa beklemeden Piper (yerel) → 'say' / espeak-ng.
+Sık söylenen kısa cümleler önbellekte (data/tts-cache) tutulur, anında çalar. Kesilebilir."""
+import asyncio
+import hashlib
 import platform
 import queue
 import re
@@ -10,15 +13,20 @@ import threading
 import time
 import uuid
 import wave
+from collections import deque
 from pathlib import Path
+
+import numpy as np
 
 from ..text import speakable
 
-PLAYER = ["afplay"] if platform.system() == "Darwin" else ["mpg123", "-q"]
+MAC = platform.system() == "Darwin"
+FIRST_AUDIO_S = 2.5      # ilk ses bu sürede gelmezse servis yavaş sayılır
+CACHE_MAX_CHARS = 80     # bu kadar kısa cevaplar önbelleğe alınır
 
 
 def sentences(text: str, min_len=40) -> list[str]:
-    """Cümlelere böl; çok kısa parçaları birleştir (her parça ayrı istek, gereksiz bekleme olmasın)."""
+    """Cümlelere böl; çok kısa parçaları birleştir."""
     parts, cur = [], ""
     for s in re.split(r"(?<=[.!?…])\s+", text.strip()):
         cur = f"{cur} {s}".strip()
@@ -30,16 +38,76 @@ def sentences(text: str, min_len=40) -> list[str]:
     return parts
 
 
+class Player:
+    """mp3 baytlarını mpg123 ile ham sese çözer ve sounddevice ile çalar. Çalınan sesin seviyesini kaydeder:
+    ses döngüsü mikrofondaki yankıyı bununla karşılaştırıp kullanıcının söze girdiğini anlar."""
+    RATE = 24000
+
+    def __init__(self, mpg123, cancel, levels):
+        self.cancel, self.levels = cancel, levels
+        self.proc = subprocess.Popen([mpg123, "-q", "-s", "-m", "-r", str(self.RATE), "-e", "s16", "-"],
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        self.q: queue.Queue = queue.Queue()
+        self.started = threading.Event()
+        threading.Thread(target=self._writer, daemon=True).start()
+        self.pt = threading.Thread(target=self._play, daemon=True)
+        self.pt.start()
+
+    def feed(self, b: bytes):
+        self.q.put(b)
+
+    def close(self):
+        self.q.put(None)
+
+    def _writer(self):
+        while (b := self.q.get()) is not None and not self.cancel.is_set():
+            try:
+                self.proc.stdin.write(b)
+                self.proc.stdin.flush()
+            except OSError:
+                break
+        try:
+            self.proc.stdin.close()
+        except OSError:
+            pass
+
+    def _play(self):
+        import sounddevice as sd
+        try:
+            with sd.OutputStream(samplerate=self.RATE, channels=1, dtype="int16", latency="low") as out:
+                while not self.cancel.is_set():
+                    b = self.proc.stdout.read(2400)          # 50 ms
+                    if not b:
+                        break
+                    x = np.frombuffer(b[: len(b) // 2 * 2], np.int16)
+                    self.levels.append((time.time(), float(np.sqrt(np.mean((x / 32768.0) ** 2))) if len(x) else 0.0))
+                    self.started.set()
+                    out.write(x)
+                if self.cancel.is_set():
+                    out.abort()
+        finally:
+            if self.proc.poll() is None:
+                self.proc.kill()
+
+    def wait(self):
+        self.pt.join()
+
+
 class TTS:
     def __init__(self, engine="edge", voice_path=None, say_voice="Yelda", tmp="/tmp",
-                 edge_voice="tr-TR-EmelNeural", edge_rate="+0%", edge_pitch="+0Hz"):
+                 edge_voice="en-US-AvaMultilingualNeural", edge_rate="+0%", edge_pitch="+0Hz", cache_dir=None):
         self.engine, self.say_voice, self.tmp = engine, say_voice, Path(tmp)
         self.edge_voice, self.edge_rate, self.edge_pitch = edge_voice, edge_rate, edge_pitch
+        self.cache = Path(cache_dir) if cache_dir else None
         self.voice = None
         self.proc: subprocess.Popen | None = None
         self.speaking = threading.Event()
         self.cancel = threading.Event()
-        self.edge_ok = engine == "edge"
+        self.lock = threading.Lock()                 # aynı anda tek konuşma
+        self.levels: deque = deque(maxlen=400)        # (zaman, çalınan ses seviyesi) — söz kesme için
+        self.live = False                            # şu an seviyesi bilinen sesle mi konuşuyor
+        self.gen = 0                                 # konuşma numarası
+        self.mpg123 = shutil.which("mpg123") or ("/opt/homebrew/bin/mpg123" if Path("/opt/homebrew/bin/mpg123").exists() else None)
         if engine in ("piper", "edge") and voice_path and Path(voice_path).exists():
             try:
                 from piper import PiperVoice
@@ -51,88 +119,156 @@ class TTS:
     def from_settings(cls, v: dict, data_dir: Path):
         return cls(v.get("tts", "edge"), data_dir / f"tts/{v.get('piper_voice')}.onnx", v.get("say_voice", "Yelda"),
                    data_dir / "tmp", v.get("edge_voice", "en-US-AvaMultilingualNeural"), v.get("edge_rate", "+0%"),
-                   v.get("edge_pitch", "+0Hz"))
+                   v.get("edge_pitch", "+0Hz"), data_dir / "tts-cache")
 
-    # ---- üretim ----
-    def _edge(self, text) -> Path | None:
-        if not self.edge_ok:
+    def echo_level(self, window=0.5):
+        """Son 'window' sn'de hoparlöre verilen en yüksek seviye; seviyesi bilinmeyen sesle konuşuyorsa None."""
+        if not self.live:
             return None
-        import asyncio
-        import edge_tts
-        f = self.tmp / f"tts-{uuid.uuid4().hex[:8]}.mp3"
-        for attempt in range(3):          # servis ara sıra boş döner; hemen robot sese düşme
-            try:
-                asyncio.run(asyncio.wait_for(edge_tts.Communicate(text, self.edge_voice, rate=self.edge_rate,
-                                                                  pitch=self.edge_pitch).save(str(f)), 12))
-                if f.exists() and f.stat().st_size:
-                    self.edge_fails = 0
-                    return f
-            except Exception:
-                pass
-            if self.cancel.is_set():
-                break
-            time.sleep(0.6 * (attempt + 1))
-        f.unlink(missing_ok=True)
-        self.edge_fails = getattr(self, "edge_fails", 0) + 1
-        if self.edge_fails >= 3:          # üst üste 3 cümle olmadı: internet yok say, 2 dk yerel ses
-            self.edge_ok, self.edge_fails = False, 0
-            t = threading.Timer(120, lambda: setattr(self, "edge_ok", True))
-            t.daemon = True
-            t.start()
-        return None
+        now = time.time()
+        return max((lv for t, lv in list(self.levels) if now - t <= window), default=0.0)
 
-    def _cmd(self, text):
-        f = self._edge(text)
-        if f:
-            return PLAYER + [str(f)], f
+    # ---- çalma yardımcıları ----
+    def _play(self, cmd, cancel) -> None:
+        if cancel.is_set():
+            return
+        self.proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.proc.wait()
+
+    def _cache_file(self, text) -> Path | None:
+        if not self.cache or len(text) > CACHE_MAX_CHARS:
+            return None
+        h = hashlib.sha1(f"{self.edge_voice}|{self.edge_rate}|{self.edge_pitch}|{text}".encode()).hexdigest()[:16]
+        return self.cache / f"{h}.mp3"
+
+    # ---- Edge: tek istek, akış ----
+    def _player_run(self, chunks, cancel) -> bytes:
+        """chunks: bayt üreteci (async değil). Player ile çalar; çalınan tüm baytları döndürür."""
+        pl = Player(self.mpg123, cancel, self.levels)
+        self.proc, self.live = pl.proc, True
+        got = bytearray()
+        try:
+            for c in chunks:
+                got.extend(c)
+                pl.feed(c)
+            pl.close()
+            pl.wait()
+        finally:
+            self.live = False
+        return bytes(got)
+
+    def _edge_stream(self, text, cancel) -> bool:
+        """Sesi geldikçe çalar. Hiç ses gelmediyse False (yedeğe geçilir). Kısmen çaldıysa True."""
+        if self.engine != "edge":
+            return False
+        import edge_tts
+        cf = self._cache_file(text)
+        if cf and cf.exists() and cf.stat().st_size:
+            if self.mpg123:
+                self._player_run([cf.read_bytes()], cancel)
+            else:
+                self._play(["afplay", str(cf)], cancel)
+            return True
+        for _ in range(2):
+            q: queue.Queue = queue.Queue()
+
+            async def run():
+                it = edge_tts.Communicate(text, self.edge_voice, rate=self.edge_rate,
+                                          pitch=self.edge_pitch).stream().__aiter__()
+                first = True
+                while not cancel.is_set():
+                    try:
+                        c = await asyncio.wait_for(it.__anext__(), FIRST_AUDIO_S if first else 10)
+                    except StopAsyncIteration:
+                        return
+                    if c["type"] == "audio":
+                        first = False
+                        q.put(c["data"])
+
+            def fetch():
+                try:
+                    asyncio.run(run())
+                except Exception:
+                    pass                              # zaman aşımı / bağlantı hatası
+                q.put(None)
+
+            threading.Thread(target=fetch, daemon=True).start()
+            head = q.get()                            # ilk parça (ya da hiç)
+            if head is None:
+                if cancel.is_set():
+                    return True
+                continue
+
+            def chunks():
+                yield head
+                while (c := q.get()) is not None:
+                    yield c
+
+            if self.mpg123:
+                got = self._player_run(chunks(), cancel)
+            else:                                     # mpg123 yoksa: dosyaya yazıp çal
+                got = b"".join(chunks())
+                f = self.tmp / f"tts-{uuid.uuid4().hex[:8]}.mp3"
+                f.write_bytes(got)
+                self._play(["afplay", str(f)], cancel)
+                f.unlink(missing_ok=True)
+            if cf and got and not cancel.is_set():
+                cf.parent.mkdir(parents=True, exist_ok=True)
+                cf.write_bytes(got)
+            return True
+        return False
+
+    def _local(self, text, cancel):
         if self.voice:
             wav = self.tmp / f"tts-{uuid.uuid4().hex[:8]}.wav"
             with wave.open(str(wav), "wb") as w:
                 self.voice.synthesize_wav(text, w)
-            return (["afplay"] if platform.system() == "Darwin" else ["aplay", "-q"]) + [str(wav)], wav
-        if platform.system() == "Darwin":
-            return ["say", "-v", self.say_voice, text], None
-        if shutil.which("espeak-ng"):
-            return ["espeak-ng", "-v", "tr", text], None
-        return None, None
+            self._play((["afplay"] if MAC else ["aplay", "-q"]) + [str(wav)], cancel)
+            wav.unlink(missing_ok=True)
+        elif MAC:
+            self._play(["say", "-v", self.say_voice, text], cancel)
+        elif shutil.which("espeak-ng"):
+            self._play(["espeak-ng", "-v", "tr", text], cancel)
 
-    # ---- çalma ----
-    def _pipeline(self, parts):
-        q: queue.Queue = queue.Queue(maxsize=2)
-
-        def produce():
-            for p in parts:
-                if self.cancel.is_set():
-                    break
-                q.put(self._cmd(p))
-            q.put(None)
-
-        threading.Thread(target=produce, daemon=True).start()
+    def _run(self, text, cancel, gen):
         try:
-            while (item := q.get()) is not None:
-                cmd, f = item
-                try:
-                    if cmd and not self.cancel.is_set():
-                        self.proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                        self.proc.wait()
-                finally:
-                    if f:
-                        f.unlink(missing_ok=True)
+            with self.lock:
+                if not cancel.is_set() and not self._edge_stream(text, cancel) and not cancel.is_set():
+                    self._local(text, cancel)
         finally:
-            self.speaking.clear()
+            if self.gen == gen:                      # eski (kesilmiş) konuşma yenisinin bayrağını indirmesin
+                self.speaking.clear()
 
     def speak(self, text: str, block=True):
         print("jarvis>", text, flush=True)
         text = speakable(text)
         if not text:
             return
-        self.cancel.clear()
+        self.stop()                                  # önceki konuşma varsa kes
+        self.cancel = threading.Event()              # her konuşmanın kendi iptal bayrağı
+        self.gen += 1
         self.speaking.set()
-        parts = sentences(text)
         if block:
-            self._pipeline(parts)
+            self._run(text, self.cancel, self.gen)
         else:
-            threading.Thread(target=self._pipeline, args=(parts,), daemon=True).start()
+            threading.Thread(target=self._run, args=(text, self.cancel, self.gen), daemon=True).start()
+
+    def warm(self, phrases):
+        """Sık cümleleri arka planda önbelleğe al (sessizce)."""
+        def go():
+            import edge_tts
+            for p in phrases:
+                cf = self._cache_file(speakable(p))
+                if not cf or cf.exists():
+                    continue
+                try:
+                    cf.parent.mkdir(parents=True, exist_ok=True)
+                    asyncio.run(asyncio.wait_for(edge_tts.Communicate(speakable(p), self.edge_voice, rate=self.edge_rate,
+                                                                      pitch=self.edge_pitch).save(str(cf)), 15))
+                except Exception:
+                    cf.unlink(missing_ok=True)
+        if self.engine == "edge" and self.cache:
+            threading.Thread(target=go, daemon=True).start()
 
     def stop(self):
         """Konuşmayı kes (kullanıcı araya girdiğinde)."""

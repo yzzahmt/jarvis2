@@ -49,5 +49,5 @@ def step_machine(name: str, args: dict, default: str) -> str:
     if args.get("machine"):
         return args["machine"]
     if name == "ask_ai" and args.get("target", "kod") == "kod":
-        return "cachyos"
+        return "zorin"
     return default

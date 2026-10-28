@@ -1,7 +1,7 @@
 # JARVIS — İlerleme
 
 ## Durum (2026-10-28)
-- **Tamamlanan:** Aşama 1, 2, 5, 6 (Mac), 7, 8, genel ajan + beceri + makrolar, **tam bilgisayar kontrolü + Edge sesi + kasa (yenilikler/009)**, Ava sesi + devam.txt (010).
+- **Tamamlanan:** Aşama 1, 2, 5, 6 (Mac), 7, 8, genel ajan + beceri + makrolar, **tam bilgisayar kontrolü + Edge sesi + kasa (yenilikler/009)**, Ava sesi + devam.txt (010), donma düzeltmesi + ayarlar paneli + Zorin OS (011), Gemini bağlandı + hız + uyandırma ayarı (012), akışlı ses + tek çağrıda sohbet (013).
 - **Bekleyen (kullanıcı):** `.env`'e `GEMINI_API_KEY`; Mac izinleri (Erişilebilirlik + Ekran Kaydı, Jarvis'i çalıştıran uygulamaya);
   sık kullanılan siteler için bir kez tarayıcıda giriş veya `python -m jarvis secret set site.com:email|sifre`;
   Aşama 3–4 Linux `setup.sh`.
@@ -22,13 +22,15 @@
 | YouTube araması (Mac, Playwright) | ✅ |
 | Metin modu uçtan uca (gerçek model + tarayıcı) | ✅ |
 | Gerçek mikrofonla sesli döngü | ⏳ kullanıcı denemesi gerekli (mikrofon izni) |
-| CachyOS / Mint SSH | ⏳ setup.sh bekleniyor |
-| Gemini CLI bayrakları (`-p`) | ⏳ CachyOS'ta `--help` ile doğrulanacak |
+| Zorin OS / Mint SSH | ⏳ setup.sh bekleniyor (scripts/serve_setup.sh) |
+| Gemini CLI bayrakları (`-p`) | ⏳ Zorin'de `--help` ile doğrulanacak |
 | Çift alkış gerçek mikrofonda | ⏳ (varsayılan kapalı) |
 | Edge TTS (Emel) hoparlörde, ilk ses ~1,5 sn | ✅ |
 | Tarayıcı numaralı öğeler + kasadan şifre + select (yerel sayfa) | ✅ |
 | Ödeme/kart/hesap kapısı, click_on, save_secret→.env (pytest, 49) | ✅ |
-| click_on gerçek ekranda / gerçek sitede alışveriş ve API anahtarı | ⏳ GEMINI_API_KEY bekleniyor |
+| Gemini ajan görevi (araçlı) / ses tanıma / görme | ✅ ~3 sn / ~1,5 sn / ~2,4 sn |
+| Uyandırma 0,35 + alkış 0,3 gerçek mikrofonda (kayıttan) | ✅ yakalandı; uygulamada kullanıcı denemesi ⏳ |
+| click_on gerçek tıklama / gerçek sitede alışveriş ve API anahtarı | ⏳ |
 
 ## Bilinen sorunlar
 - Türkçe uyandırma kelimesi yok; "hey jarvis" (İngilizce model) kullanılıyor.
@@ -90,3 +92,7 @@ Jarvis/data/logs/
 4. Türkçe uyandırma kelimesi hazır değil → "hey jarvis" (İngilizce model) kullanılacak; özel Türkçe model sonra.
 5. Uzak Giriş/SSH için Mac'te değil, Linux makinelerinde sshd gerekiyor (Aşama 3–4).
 
+
+
+## 014 (28.10.2026)
+Günlük bulut sınırı (300), ikinci Gemini anahtarı (gemini-2), gemini-yedek, mini Jarvis kısayolu ('<'+'z'). 51 test geçti. Ayrıntı: yenilikler/014.

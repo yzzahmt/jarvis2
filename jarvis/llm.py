@@ -12,6 +12,7 @@ class ToolCall:
     name: str
     args: dict
     id: str = ""
+    extra: dict = field(default_factory=dict)   # Gemini 3: thought_signature, sonraki turda geri gönderilmeli
 
 
 @dataclass
@@ -159,6 +160,18 @@ class OpenAICompat:
         m = self._post({"messages": messages, "max_tokens": max_tokens, "temperature": 0.4})
         return THINK.sub("", m.get("content") or "").strip()
 
+    def json(self, messages, max_tokens=200) -> dict:
+        m = self._post({"messages": messages, "max_tokens": max_tokens, "temperature": 0,
+                        "response_format": {"type": "json_object"}})
+        out = THINK.sub("", m.get("content") or "")
+        try:
+            return json.loads(out)
+        except ValueError:
+            g = re.search(r"\{.*\}", out, re.S)
+            if g:
+                return json.loads(g.group(0))
+            raise LLMError(f"{self.name}: geçerli JSON yok", 500)
+
     def vision(self, question, image_path, max_tokens=400) -> str:
         if not self.sees:
             raise LLMError(f"{self.name}: görme yok", 400)
@@ -177,13 +190,14 @@ class OpenAICompat:
                 args = json.loads(a) if isinstance(a, str) else a
             except ValueError:
                 args = {}
-            calls.append(ToolCall(c["function"]["name"], args, c.get("id", "")))
+            calls.append(ToolCall(c["function"]["name"], args, c.get("id", ""), c.get("extra_content") or {}))
         return Reply(THINK.sub("", m.get("content") or "").strip(), calls, self.last_tokens)
 
     def assistant_msg(self, rep: Reply) -> dict:
         return {"role": "assistant", "content": rep.content or "",
                 "tool_calls": [{"id": c.id or f"c{i}", "type": "function",
-                                "function": {"name": c.name, "arguments": json.dumps(c.args, ensure_ascii=False)}}
+                                "function": {"name": c.name, "arguments": json.dumps(c.args, ensure_ascii=False)},
+                                **({"extra_content": c.extra} if c.extra else {})}
                                for i, c in enumerate(rep.calls)]}
 
     def tool_msg(self, call: ToolCall, content: str) -> dict:

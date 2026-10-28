@@ -1,10 +1,12 @@
 """Sesli döngü: UYKU (yalnızca hafif uyandırma) <-> AKTİF (dinle, anla, yanıtla).
 Bileşenler bağımsız: uyandırma kelimesi, alkış veya kısayol çökerse diğerleri çalışır.
 Mikrofon yoksa metin moduna düşer. Ses verisi diske/buluta gitmez."""
+import itertools
 import queue
 import sys
 import threading
 import time
+from collections import deque
 
 import numpy as np
 
@@ -13,6 +15,25 @@ from ..core import Jarvis
 from ..text import norm
 
 RATE, FRAME = 16000, 1280
+
+
+def _rms(f) -> float:
+    return float(np.sqrt(np.mean((f.astype(np.float32) / 32768.0) ** 2)))
+
+
+def chime():
+    """'Dinliyorum' sesi: kısa, yumuşak iki ton (konuşmadan anında; sounddevice ile, gecikmesiz)."""
+    try:
+        import sounddevice as sd
+        sr = 24000
+        t = np.arange(int(sr * 0.07)) / sr
+        env = np.sin(np.pi * t / t[-1]) ** 2
+        tone = np.concatenate([np.sin(2 * np.pi * 880 * t) * env, np.sin(2 * np.pi * 1320 * t) * env]) * 0.18
+        sd.play(tone.astype(np.float32), sr)
+    except Exception:
+        pass
+WARM = ["Dinliyorum, ne yapmamı istersin?", "Bir süredir komut gelmedi, uyku moduna geçiyorum.", "Tamam.",
+        "Görevi durdurdum.", "Tamam, iptal ettim."]
 
 
 class Mic:
@@ -72,7 +93,9 @@ class VoiceLoop:
         self.ui = ui or NoUI()
         from .text_to_speech import TTS
         self.tts = TTS.from_settings(v, config.path("data"))
+        self.tts.warm(WARM)
         self.wake_evt = threading.Event()
+        self.preroll: list = []         # söze girilince kaydedilen ilk kareler
         self.mic = Mic()
         self.ww = self.clap = None
         try:
@@ -82,15 +105,20 @@ class VoiceLoop:
             status(f"Uyandırma kelimesi devre dışı: {e}")
         if v.get("clap_enabled"):
             from .clap_detector import ClapDetector
-            self.clap = ClapDetector()
+            self.clap = ClapDetector(peak=v.get("clap_peak", 0.3), max_gap=v.get("clap_max_gap", 1.0))
         if hotkeys:                # arayüzde kapalı: pynput arka iş parçacığında macOS'ta çöküyor
             self._hotkeys(v)
-        status("Konuşma tanıma modeli yükleniyor...")
         from .speech_to_text import STT
-        self.stt = STT(v.get("stt_model", "small"), str(config.path("data/hf")), v.get("words") or [])
+        self.stt = STT(v.get("stt_model", "small"), str(config.path("data/hf")), v.get("words") or [],
+                       v.get("stt_cloud_model", "gemini-3.5-flash-lite"), v.get("stt_cloud", True))
+        if self.j.brains:
+            self.stt.allow, self.stt.used = self.j.brains.can_cloud, lambda: self.j.brains.note("gemini-stt")
+        status("Konuşma tanıma: " + ("Gemini (bulut), yedek yerel" if STT._key() and v.get("stt_cloud", True) else "yerel model"))
         threading.Thread(target=self._warm_llm, daemon=True).start()
 
     def _warm_llm(self):
+        if self.j.brains and self.j.brains.ready() and any(b.is_cloud for b in self.j.brains.ready()):
+            return                 # bulut beyin var: yerel modeli boşuna belleğe yükleme
         try:
             self.j.llm.chat([{"role": "user", "content": "merhaba"}], max_tokens=1)
         except Exception:
@@ -113,14 +141,58 @@ class VoiceLoop:
         on = self.mic.toggle()
         status("MİKROFON AÇIK" if on else "MİKROFON KAPALI (yalnızca kısayolla uyanır)")
 
-    def say(self, text):
+    def say(self, text, interruptible=True):
+        """Konuşur. Kullanıcı söze girerse (ChatGPT gibi) hemen susar; söylediğinin başı self.preroll'da kalır."""
         self.ui.state("speaking")
-        self.tts.speak(text)
+        self.mic.drain()
+        self.tts.speak(text, block=False)
+        pre = self._watch(interruptible and self.v.get("barge_in", True))
         self.ui.state("idle")
-        time.sleep(0.25)
-        self.mic.drain()           # kendi sesini komut sanmasın
+        if pre:
+            self.preroll = pre
+        else:
+            time.sleep(0.2)
+            self.mic.drain()       # kendi sesini komut sanmasın
         if self.ww:
             self.ww.reset()
+        return bool(pre)
+
+    def _watch(self, barge):
+        """Konuşma bitene kadar mikrofonu izler. Mikrofondaki ses, hoparlöre verilen sesin yankısından belirgin
+        şekilde yüksekse (ya da 'hey jarvis' denirse) kullanıcı konuşuyordur: sustur, son kareleri döndür."""
+        ring = deque(maxlen=8)               # ~0,64 sn: sözün başı kaybolmasın
+        # 28.10 ölçümü (MacBook hoparlör %31, mikrofon %33): yankı = çalınan sesin %3'ü (en çok %9).
+        # Yankı oranının ÜST zarfı izlenir; eşik = 1,5 × beklenen yankı + 0,008. Kayıtta kendi sesiyle hiç
+        # tetiklenmedi, üstüne eklenen 0,025+ konuşmayı her yerde ~0,3 sn'de yakaladı.
+        gain, hot, t0 = self.v.get("echo_gain", 0.06), 0, time.time()
+        k, floor = self.v.get("barge_k", 1.5), self.v.get("barge_floor", 0.008)
+        while self.tts.speaking.is_set():
+            try:
+                f = self.mic.q.get(timeout=0.1)
+            except queue.Empty:
+                continue
+            if not barge:
+                continue
+            ring.append(f)
+            lvl, play = _rms(f), self.tts.echo_level()
+            woke = bool(play is None and self.ww and self.ww.feed(f))   # kendi sesindeki 'Jarvis' kesmesin
+            if play is None or time.time() - t0 < 0.4:                  # yerel ses / ilk an: enerjiyle kesme yok
+                hot = 0
+            elif lvl > k * gain * play + floor:
+                hot += 1
+            else:
+                hot = 0
+                if play > 0.01:
+                    gain = max(0.97 * gain, min(lvl / play, 0.15), 0.03)   # yankı oranının üst zarfı
+            if hot >= 4 or woke:             # ~0,3 sn süren konuşma
+                self.tts.stop()
+                status("SÖZÜM KESİLDİ — dinliyorum")
+                return list(ring)
+        return None
+
+    def _take_preroll(self):
+        pre, self.preroll = self.preroll, []
+        return pre
 
     def ask(self, question):
         return self.ui.ask(question, listen=self.listen_answer)
@@ -130,7 +202,7 @@ class VoiceLoop:
         from .speech_to_text import record_utterance
         self.say(question)
         self.ui.state("listening")
-        audio = record_utterance(self.mic.frames(), RATE, start_timeout=10)
+        audio = record_utterance(self.mic.frames(), RATE, start_timeout=10, preroll=self._take_preroll())
         ans = self.stt.transcribe(audio) if audio is not None else ""
         status(f"sen> {ans}")
         return ans
@@ -138,11 +210,19 @@ class VoiceLoop:
     def sleep_mode(self):
         status("UYKU — 'hey jarvis', kısayol" + (" veya çift alkış" if self.clap else "") + " ile uyanır")
         self.ui.state("sleep")
+        silent, warned = 0, False
         for f in self.mic.frames(timeout=0.2):
             if self.wake_evt.is_set():
                 break
             if not self.mic.enabled.is_set():
                 continue
+            silent = 0 if f.any() else silent + 1
+            if silent > 125 and not warned:      # ~10 sn tam sıfır: mikrofon izni yok / aygıt kapalı
+                warned = True
+                msg = ("Mikrofondan hiç ses gelmiyor. Sistem Ayarları > Gizlilik ve Güvenlik > Mikrofon'da "
+                       "JARVIS'e izin ver, sonra Jarvis'i yeniden aç.")
+                status(msg)
+                self.ui.message("jarvis-interim", msg)
             if (self.ww and self.ww.feed(f)) or (self.clap and self.clap.feed(f)):
                 break
         self.wake_evt.clear()
@@ -150,8 +230,16 @@ class VoiceLoop:
     def active_mode(self):
         status("AKTİF — dinliyorum")
         greet = self.j.handle("uyan")
-        self.ui.message("jarvis", greet)
-        self.say(greet)
+        base = "Dinliyorum, ne yapmamı istersin?"
+        extra = greet.replace(base, "").strip()
+        if self.v.get("wake_chime", True) and not extra:
+            chime()                          # konuşmadan anında dinlemeye geç (önceden ~2,5 sn selamlama vardı)
+            self.ui.message("jarvis-interim", "Dinliyorum…")
+            time.sleep(0.15)
+            self.mic.drain()
+        else:
+            self.ui.message("jarvis", greet)
+            self.say(greet)
         from .speech_to_text import record_utterance
         idle_until = time.time() + self.v.get("idle_sleep_s", 60)
         while True:
@@ -160,8 +248,10 @@ class VoiceLoop:
                 self.say("Bir süredir komut gelmedi, uyku moduna geçiyorum.")
                 return
             self.ui.state("listening")
-            audio = record_utterance(self.mic.frames(), RATE, start_timeout=8)
+            st: dict = {}
+            audio = record_utterance(self.mic.frames(), RATE, start_timeout=8, stats=st, preroll=self._take_preroll())
             if audio is None:
+                status(f"duyulmadı (en yüksek seviye {st.get('peak')}, eşik {st.get('th')})")
                 continue
             self.ui.state("thinking")
             text = self.stt.transcribe(audio)

@@ -125,15 +125,15 @@ def test_macro_match_and_run(db, tmp_path):
 
 
 def test_ask_ai_code_needs_confirm_and_stays_in_project(db):
-    cachy = FakeAgent(handler=lambda c: Result(True, "düzeltildi", "", 0))
+    zorin = FakeAgent(handler=lambda c: Result(True, "düzeltildi", "", 0))
     asked = []
-    c = ctx(db, {"cachyos": cachy}, budget=Budget())
+    c = ctx(db, {"zorin": zorin}, budget=Budget())
     from jarvis.adapters.coder import Coder
     c.coder = Coder({"order": ["gemini"]})
     c.ask = lambda q: asked.append(q) or "evet"
     res, ran = T.call(c, "ask_ai", {"prompt": "oyundaki hatayı düzelt", "workdir": "tarih"})
     assert ran and "gemini" in res and asked
-    assert any("/projeler/tarih && gemini -p" in x for x in cachy.calls)
+    assert any("/projeler/tarih && gemini -p" in x for x in zorin.calls)
     res, _ = T.call(c, "ask_ai", {"prompt": "x", "workdir": "~/projeler/../.ssh"})
     assert "REDDEDİLDİ" in res
 

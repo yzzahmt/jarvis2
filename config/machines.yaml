@@ -2,9 +2,9 @@
 mac:
   role: controller
   local: true
-cachyos:
+zorin:            # Zorin OS (Ubuntu tabanlı): kodlama/test
   role: technical
-  aliases: [cachy, cachyos, kaşi, teknik]
+  aliases: [zorin, zorin os, zorinos, sorin, teknik]
   host: null
   user: null
   port: 22

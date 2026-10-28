@@ -32,7 +32,7 @@ def speakable(text: str) -> str:
 
 # Whisper'ın sık yanlış duyduğu adlar
 FIXES = [(re.compile(r"\b(c|ç|j|ş)[ae]r?v[iı]s+\b|\bjarvi[sz]\w*\b|\bcervis\b|\bçarviz\b", re.I), "Jarvis"),
-         (re.compile(r"\b(ka[cç]i|keş[iı]|kaşi|cachy) ?(o ?es|os|oes)\b", re.I), "CachyOS"),
+         (re.compile(r"\b(zor[ıi]n|sor[ıi]n|zor in) ?(o ?es|os|oes)\b", re.I), "Zorin OS"),
          (re.compile(r"\byou ?tube|yutup|yutub\b", re.I), "YouTube")]
 
 

@@ -6,12 +6,13 @@ import time
 
 from .llm import LLMError, OpenAICompat
 
-COOL = {429: 600, 402: 3600, 401: None, 403: None}   # sn; None = bu oturumda kapalı
+COOL = {429: 600, 402: 3600, 401: None, 403: None, 400: 30}   # sn; None = bu oturumda kapalı; 400 = istek hatası, kısa
 
 
 class Brains:
-    def __init__(self, cfgs: list[dict], db=None):
+    def __init__(self, cfgs: list[dict], db=None, daily_cap=0):
         self.all = [OpenAICompat(c) for c in cfgs]
+        self.daily_cap = daily_cap          # günlük bulut çağrısı üst sınırı (0 = sınırsız); dolunca yalnız yerel
         self.until: dict[str, float] = {}
         self.db = db
         self.lock = threading.Lock()
@@ -26,8 +27,26 @@ class Brains:
     def model(self):
         return self.last_model
 
+    def today(self) -> int:
+        """Bugünkü bulut çağrısı sayısı (tüm sağlayıcılar)."""
+        if self.db is None:
+            return 0
+        pre = f"kullanim:{time.strftime('%Y-%m-%d')}:"
+        local = {b.name for b in self.all if not b.is_cloud}
+        return sum(int(m["value"] or 0) for m in self.db.memories("usage")
+                   if m["key"].startswith(pre) and m["key"][len(pre):] not in local)
+
+    def can_cloud(self) -> bool:
+        return not self.daily_cap or self.today() < self.daily_cap
+
+    def note(self, name):
+        """Brains dışından yapılan bulut isteğini say (ör. ses tanıma)."""
+        self._count(type("B", (), {"name": name})())
+
     def ready(self):
         now = time.time()
+        if not self.can_cloud():                                   # günlük sınır doldu: yalnızca yerel
+            return [b for b in self.all if not b.is_cloud and b.available()]
         return [b for b in self.all if b.available() and self.until.get(b.name, 0) <= now]
 
     def status(self) -> list[dict]:
@@ -69,6 +88,9 @@ class Brains:
 
     def chat(self, messages, max_tokens=400):
         return self._try("chat", messages, max_tokens=max_tokens)
+
+    def json(self, messages, max_tokens=200):
+        return self._try("json", messages, max_tokens=max_tokens)
 
     def can_see(self) -> bool:
         return any(b.sees for b in self.ready())
