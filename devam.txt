@@ -1,5 +1,5 @@
 JARVIS — DEVAM NOTU (yeni bir yapay zekâ oturumu buradan başlasın)
-Son güncelleme: 29.10.2026 (020)
+Son güncelleme: 29.10.2026 (021)
 ==========================================================================
 
 YENİ OTURUMA İLK MESAJ OLARAK ŞUNU YAZ:
@@ -139,8 +139,9 @@ Dock (19): küçült (sarı düğme/⌘M/Esc) → altta Jarvis çubuğu (küre, 
 jarvis/ui/web/overlay.html + App.dock (ui/app.py) + LocalBar.docked (ui/overlays.py). Ana pencere premium cilalandı.
 Düzeltme (20): Mac ikinci kulağı JARVIS.app içinde çalışmıyor (Info.plist'te konuşma tanıma izni yok) ve gerçek
 sözleri atıyordu → artık yalnız çalıştığı kanıtlanınca veto eder. Asıl koruma Silero VAD: 0,3 sn insan sesi yoksa ses
-gönderilmez. Gemini'ye ad listesi verilmez. YAPILACAK: JARVIS.app'e NSSpeechRecognitionUsageDescription (imza değişir,
-mikrofon izni yeniden verilmeli) → Mac ikinci kulağı uygulama içinde de çalışır.
+gönderilmez. Gemini'ye ad listesi verilmez.
+App izni (21): JARVIS.app'e konuşma tanıma izni eklendi + yeniden imzalandı (scripts/app_izinleri.sh). İlk konuşmada
+macOS "Konuşma Tanıma" izni sorar → İzin Ver; sonra Mac ikinci kulağı uygulama içinde de çalışır.
 Testler: 60. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
 
 Bilinen sorunlar:

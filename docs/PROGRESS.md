@@ -114,3 +114,6 @@ Küçültünce alttaki Jarvis çubuğu (dock: küre, dalga, son cevap, mikrofon/
 
 ## 020 (29.10.2026)
 İkinci kulak uygulama içinde gerçek sözleri atıyordu → kanıt şartı; Silero VAD kapısı; Gemini'ye ad listesi yok. 60 test. Ayrıntı: yenilikler/020.
+
+## 021 (29.10.2026)
+JARVIS.app'e konuşma tanıma izni + yeniden imza (scripts/app_izinleri.sh); Mac ikinci kulağı uygulama içinde. Ayrıntı: yenilikler/021.
