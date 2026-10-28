@@ -1,5 +1,5 @@
 JARVIS — DEVAM NOTU (yeni bir yapay zekâ oturumu buradan başlasın)
-Son güncelleme: 28.10.2026 (017)
+Son güncelleme: 28.10.2026 (018)
 ==========================================================================
 
 YENİ OTURUMA İLK MESAJ OLARAK ŞUNU YAZ:
@@ -133,7 +133,9 @@ Mikrofon giriş seviyesi 33 → 80 (kasarak konuşma sorunu); kesme eşiği yumu
 ASLA KENDİ KENDİNE KOMUT (17): talimatta örnek kelime yok; Mac tanıması "ikinci kulak" — o duymadıysa/örtüşmüyorsa
 metin atılır; Jarvis'in kendi söylediğine benzeyen metin atılır. Günlükte "yok sayıldı" satırları.
 Mac tanıması ilk açılışta "Konuşma Tanıma" izni ister → İzin Ver (yoksa ikinci kulak ve Mac yedeği kapalı kalır).
-Testler: 57. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
+Takılınca sorar (18): ajan talimatında ne zaman ask_user (belirsiz istek, çok seçenek, varsayım, olmayan yol);
+kodda 2 başarısız adımdan sonra "kullanıcıya sor" notu; yapmadığını "yaptım" demez (sohbette de).
+Testler: 58. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
 
 Bilinen sorunlar:
 - CAPTCHA ve SMS kodunu Jarvis geçemez; kullanıcıya sorar.

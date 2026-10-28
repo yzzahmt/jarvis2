@@ -26,7 +26,15 @@ Makineler: mac (ana), zorin (kodlama/test; shell machine=zorin), mint (shell mac
 - Mac uygulamaları: open_app, applescript, set_volume. Ekrandaki herhangi bir şey için click_on (tarif ederek tıklar),
   sonra type_text/press_keys; durumu görmek için look_screen. Kaydırma/sürükleme: mouse.
 - Kod yazma veya derin araştırma gibi büyük işleri ask_ai ile uygun yapay zekâ aracına iyi yazılmış bir promptla ver.
-- Hata alırsan farklı bir yol dene; aynı şeyi tekrarlama. Belirsizse ask_user.
+- Kafana göre iş yapma; şu durumlarda ask_user ile kısa, seçenekli bir soru sor ve cevaba göre devam et:
+  * İstek birden çok şekilde anlaşılabiliyorsa (hangi dosya, site, hesap, proje, makine) — ilk adımdan önce sor.
+  * Birden çok uygun seçenek çıktıysa (ürünler, anahtarlar, klasörler) kendin seçme: en iyi 2-3'ünü kısaca
+    söyle (ad, fiyat gibi) ve hangisini istediğini sor.
+  * Kullanıcının söylemediği bir şeyi varsayman gerekiyorsa (marka, boyut, fiyat aralığı, adet, hedef klasör).
+  * Bir yol olmadıysa, ekranda beklemediğin bir şey çıktıysa ya da sıradaki adımı bilmiyorsan: dur, ne denediğini
+    bir cümleyle söyle ve nasıl ilerlemek istediğini sor. Aynı şeyi tekrar deneme.
+  Tek anlamlı basit işlerde (uygulama aç, sesi ayarla, bilinen dosyayı göster) sorma, yap.
+- Yapmadığın bir şeyi yaptım deme. Bitmediyse nerede kaldığını ve neyi beklediğini söyle.
 - Silme, kurulum, mesaj/e-posta gönderme, yayınlama gibi geri alınamaz işlerden önce ask_user ile onay al.
 - Bitirince araç çağırmadan sonucu söyle: doğal, sıcak, konuşma dilinde 1-3 cümle; ne yaptığını ve varsa
   kullanıcının yapması gerekeni söyle. Sesli okunur: markdown, liste, adres, emoji yok.
@@ -56,6 +64,7 @@ def run(task, ctx, llm, budget, history=None, hint=""):
     msgs = [{"role": "system", "content": system + ("\n" + hint if hint else "")},
             *(history or []), {"role": "user", "content": task}]
     steps, schemas = [], T.schemas()
+    fails = 0                                  # üst üste başarısız adım
     while True:
         budget.turn()
         if ctx.stop is not None and ctx.stop.is_set():
@@ -69,12 +78,20 @@ def run(task, ctx, llm, budget, history=None, hint=""):
             return (rep.content or "Tamam.").strip(), steps
         msgs.append(llm.assistant_msg(rep))
         for c in rep.calls:
+            if c.name == "ask_user":
+                fails = 0
             ctx.progress(c.name, c.args)
             res, ran = T.call(ctx, c.name, c.args)
             denied = res.startswith("KULLANICI REDDETTİ")
             steps.append({"tool": c.name, "args": c.args, "ok": ran, "denied": denied})
             if not ran and not denied:
-                budget.fix_attempt(c.name + res)
+                budget.fix_attempt(c.name + res)   # imza nottan önce (aynı hata sayımı bozulmasın)
+                fails += 1
+                if fails >= 2:                 # kodda: iki başarısızlıktan sonra tahminle sürdürmesin, sorsun
+                    res += ("\n[SİSTEM: Üst üste iki adım olmadı. Tahminle devam etme. ask_user ile kullanıcıya ne "
+                            "denediğini bir cümleyle söyle ve nasıl ilerlemek istediğini sor.]")
+            elif ran:
+                fails = 0
             msgs.append(llm.tool_msg(c, res))
 
 

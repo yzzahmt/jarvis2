@@ -189,3 +189,12 @@ def test_brains_failover_and_cooldown(monkeypatch):
     assert br.chat([{"role": "user", "content": "selam"}]) == "Merhaba" and calls == ["a", "yerel"]
     assert br.chat([]) == "Merhaba" and calls[-1] == "yerel" and calls.count("a") == 1   # a soğumada
     assert [s["wait_s"] > 0 for s in br.status()] == [True, False, False]
+
+
+def test_two_failures_tell_agent_to_ask(db):
+    # 018: takıldığında kafasına göre sürdürmesin; iki başarısız adımdan sonra kodda "kullanıcıya sor" notu
+    llm = ScriptLLM([("yok_boyle_arac", {"a": 1}), ("yok_boyle_arac2", {"b": 2})], final="Sordum.")
+    loop.run("bir şey yap", ctx(db), llm, Budget())
+    last_tool = [m for m in llm.seen[-1] if m["role"] == "tool"]
+    assert "SİSTEM" not in last_tool[0]["content"] and "ask_user" in last_tool[1]["content"]
+    assert "Kafana göre iş yapma" in loop.SYSTEM and "yaptım deme" in loop.SYSTEM

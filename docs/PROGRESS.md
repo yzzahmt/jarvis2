@@ -105,3 +105,6 @@ Ses tanıma: örnek cümle ipucu kaldırıldı (sessizlikte uyduruluyor, sahte Z
 
 ## 017 (28.10.2026)
 Ses tanıma zinciri (Gemini 3 model × 2 anahtar → Groq → Mac apple_stt → whisper), Mac ikinci kulak ile uydurma komut reddi, kendi sesini yok sayma, mikrofon 33→80 ve yumuşak kesme, Groq gpt-oss-120b. 57 test. Ayrıntı: yenilikler/017.
+
+## 018 (28.10.2026)
+Takılınca sorar: ajan talimatında açık ask_user kuralları, kodda 2 başarısızlıktan sonra sor notu, sahte 'yaptım' yasağı. 58 test. Ayrıntı: yenilikler/018.
