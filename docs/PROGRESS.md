@@ -117,3 +117,6 @@ Küçültünce alttaki Jarvis çubuğu (dock: küre, dalga, son cevap, mikrofon/
 
 ## 021 (29.10.2026)
 JARVIS.app'e konuşma tanıma izni + yeniden imza (scripts/app_izinleri.sh); Mac ikinci kulağı uygulama içinde. Ayrıntı: yenilikler/021.
+
+## 022 (29.10.2026)
+Ses seçimi belirgin + tıklayınca önizleme, tek önizleme motoru, çökme kaydı (crash.log), uygulama simgesi paket içinde. Ayrıntı: yenilikler/022.

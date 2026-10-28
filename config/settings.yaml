@@ -43,7 +43,7 @@ voice:
   stt_model: large-v3-turbo   # yerel yedek; yalnızca gerekince yüklenir (small Türkçede zayıftı)
   words: [Vivaldi, OBİS]      # sık söylediğin özel adlar (okul, site, uygulama); ses tanıma bunları öncelikli duyar
   tts: edge               # edge (doğal sinir ağı sesi, internet) | piper (yerel) | say; edge yoksa otomatik piper
-  edge_voice: tr-TR-EmelNeural   # arayüz > dişli > Ses ile değişir (Ava, Andrew, Emma, Brian, Emel)
+  edge_voice: en-US-AvaMultilingualNeural   # arayüz > dişli > Ses ile değişir (Ava, Andrew, Emma, Brian, Emel)
   edge_rate: "+10%"         # biraz hızlı = daha akıcı, daha az bekleme
   edge_pitch: "+0Hz"
   piper_voice: tr_TR-dfki-medium

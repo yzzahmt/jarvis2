@@ -1,5 +1,5 @@
 JARVIS — DEVAM NOTU (yeni bir yapay zekâ oturumu buradan başlasın)
-Son güncelleme: 29.10.2026 (021)
+Son güncelleme: 29.10.2026 (022)
 ==========================================================================
 
 YENİ OTURUMA İLK MESAJ OLARAK ŞUNU YAZ:
@@ -142,6 +142,8 @@ sözleri atıyordu → artık yalnız çalıştığı kanıtlanınca veto eder. 
 gönderilmez. Gemini'ye ad listesi verilmez.
 App izni (21): JARVIS.app'e konuşma tanıma izni eklendi + yeniden imzalandı (scripts/app_izinleri.sh). İlk konuşmada
 macOS "Konuşma Tanıma" izni sorar → İzin Ver; sonra Mac ikinci kulağı uygulama içinde de çalışır.
+Ayarlar (22): ses satırına tıkla = seç + önizleme; seçili açıkça işaretli; tek önizleme motoru. Çökme olursa
+data/logs/crash.log'a bak (faulthandler). Uygulama simgesi paketin içinde (applet.icns).
 Testler: 60. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
 
 Bilinen sorunlar:

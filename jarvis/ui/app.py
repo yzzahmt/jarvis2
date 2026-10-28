@@ -1,11 +1,14 @@
 """JARVIS masaüstü arayüzü (python -m jarvis app). Terminal gerekmez.
 Ana pencere: web/index.html (pywebview, port açılmaz; JS <-> Python köprüsü).
 Alt çubuk: iş hangi bilgisayarda yapılıyorsa orada (overlays.py)."""
+import faulthandler
 import json
+import logging
 import os
 import re
 import threading
 import time
+import traceback
 from pathlib import Path
 
 import webview
@@ -15,6 +18,7 @@ from ..core import NAMES, Jarvis
 from .labels import KINDS, step_label, step_machine
 from .overlays import Bars
 
+log = logging.getLogger("jarvis.ui")
 WEB = Path(__file__).with_name("web")
 
 
@@ -108,6 +112,7 @@ class App:
         self.bar_win = self._bar_window()
         self.bars = Bars(self.j.agents, self.bar_win)
         self.docked, self.last_line = False, ""
+        self._preview, self._preview_lock = None, threading.Lock()
         self.win.events.loaded += self._loaded
         try:                                     # ⌘M / sarı düğme: Dock'a değil alttaki çubuğa
             self.win.events.minimized += lambda: threading.Thread(target=self.dock, args=(True,), daemon=True).start()
@@ -268,10 +273,18 @@ class App:
         return True
 
     def preview_voice(self, voice):
+        """Sesin kısa önizlemesi. Tek önizleme motoru; önce Jarvis'in konuşması ve önceki önizleme susar
+        (her tıklamada yeni motor + üst üste çalan sesler 29.10'da çökmeyle aynı anda görüldü)."""
         from ..voice.text_to_speech import TTS
-        t = TTS.from_settings({**self.s.get("voice", {}), "edge_voice": voice}, config.path("data"))
-        threading.Thread(target=t.speak, args=("Merhaba, ben Jarvis. Sesim böyle olacak, beğendin mi?",),
-                         daemon=True).start()
+        name = next((n for v, n, _ in self.VOICES if v == voice), "Jarvis")
+        for t in self._tts_objs():
+            t.stop()
+        with self._preview_lock:
+            if self._preview is None:
+                self._preview = TTS.from_settings({**self.s.get("voice", {}), "edge_voice": voice}, config.path("data"))
+            self._preview.stop()
+            self._preview.edge_voice = voice
+            self._preview.speak(f"Merhaba, ben {name}. Sesim böyle, beğendin mi?", block=False)
 
     def set_key(self, key):
         """Gemini anahtarını .env'e yazar ve beyinleri yeniden kurar (yeniden başlatmadan)."""
@@ -369,6 +382,7 @@ class App:
             self.push("machines", list=self.machines())
 
     def quit(self):
+        log.warning("çıkış: %s", "".join(traceback.format_stack(limit=6)[:-1]).replace("\n", " | ")[-600:])
         self.bars.close()
         for w in list(webview.windows):
             try:
@@ -484,4 +498,10 @@ def _brand():
 
 
 def main():
+    # Çökme kaydı: Python'un yakalayamadığı (yerel) çökmeler ve iş parçacığı hataları data/logs/crash.log'a
+    crash = open(config.path("data/logs/crash.log"), "a", buffering=1)
+    crash.write(f"\n=== başlangıç {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+    faulthandler.enable(file=crash, all_threads=True)
+    threading.excepthook = lambda a: crash.write(
+        f"[{time.strftime('%H:%M:%S')}] iş parçacığı hatası: {''.join(traceback.format_exception(a.exc_type, a.exc_value, a.exc_traceback))}")
     App().run()
