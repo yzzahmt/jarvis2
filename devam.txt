@@ -101,7 +101,8 @@ Anahtar gelince Claude'un yapacakları (sırayla):
   2. Gerçek denemeler (metin modunda): "Finder'da İndirilenler'i aç" (click_on); bir sitede ürünü sepete ekle
      (ödeme onayında DURMALI); iyzico sandbox API anahtarını test projesinin .env'ine al.
   3. Sorunlara göre talimat/araç düzeltmeleri, yenilikler/ notu, PROGRESS.md güncellemesi.
-  4. Değişiklikler henüz git'e commit EDİLMEDİ (kullanıcı onayı bekleniyor; commit mesajında yapay zekâ satırı yok).
+  4. Git: https://github.com/yzzahmt/jarvis2 (main, HERKESE AÇIK). Eski JS projesi 'eski-js' dalında yedekli.
+     Commit mesajlarında yapay zekâ satırı yok.
 
 Bilinen sorunlar:
 - CAPTCHA ve SMS kodunu Jarvis geçemez; kullanıcıya sorar.
