@@ -224,3 +224,37 @@ def test_tell_stops_or_forwards(make):
     j = make()
     assert "hesaba" in j.tell("onu kırmızı yap") and j.inbox.get_nowait() == "onu kırmızı yap"
     assert j.tell("dur") in ("Görevi durdurdum.", "Çalışan bir görev yok.") and j.inbox.empty()
+
+
+def test_demo_steps_are_readable():
+    from jarvis.agent.teach import steps_text
+    ev = [{"kind": "click", "app": "CapCut", "what": "düğme 'Metin'", "button": "left", "x": 1, "y": 1},
+          {"kind": "type", "app": "CapCut", "text": "Merhaba"},
+          {"kind": "keys", "app": "CapCut", "keys": "cmd+b"},
+          {"kind": "scroll", "app": "CapCut", "what": "zaman çizelgesi", "amount": 2},
+          {"kind": "scroll", "app": "CapCut", "what": "zaman çizelgesi", "amount": 3},
+          {"kind": "drag", "app": "CapCut", "what": "hücre 'resim.png'", "to": "zaman çizelgesi",
+           "x": 1, "y": 2, "to_x": 3, "to_y": 4}]
+    st = steps_text(ev)
+    assert st[0] == "düğme 'Metin' tıkla (CapCut)" and st[1] == 'yaz: "Merhaba"' and st[2] == "tuş: cmd+b"
+    assert st[3] == "zaman çizelgesi üzerinde kaydır (5)" and "sürükle" in st[4] and len(st) == 5
+
+
+def test_teach_then_used_as_hint(make, monkeypatch):
+    # 029: "sana göstereyim" → kayıt; "tamam bitti" → saklanır; benzer istekte ajana örnek olarak verilir
+    import jarvis.agent.teach as TE
+
+    class FakeRec:
+        def __init__(self, name):
+            self.name = name
+
+        def stop(self):
+            return ["düğme 'Metin' tıkla (CapCut)", 'yaz: "Merhaba"']
+    monkeypatch.setattr(TE, "Recorder", FakeRec)
+    j = make()
+    assert "izliyorum" in j.handle("sana capcut'ta altyazı eklemeyi göstereyim")
+    assert "izliyorum" in j.handle("saat kaç")            # kayıt sürerken iş yapmaz
+    assert "2 adım" in j.handle("tamam bitti") and j.teacher is None
+    h = j.skills.hint("capcut'ta bu videoya altyazı ekle")
+    assert "BİZZAT GÖSTERDİ" in h and "düğme 'Metin' tıkla" in h
+    assert j.skills.hint("hava nasıl") == ""

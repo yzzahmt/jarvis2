@@ -59,6 +59,7 @@ class Jarvis:
         self.on_progress = None
         self.on_event = None               # arayüz: görev başladı/bitti olayları
         self.pointer = None                # kullanıcı konuşmayı bitirdiğinde fare imlecinin yeri
+        self.teacher = None                # "sana göstereyim" kaydı sürüyorsa Recorder
         self.inbox: queue.Queue = queue.Queue()   # görev sürerken kullanıcının eklediği sözler (ajan her turda okur)
         self.awake = False
         self.pending: tuple[str, Intent] | None = None
@@ -86,7 +87,40 @@ class Jarvis:
         self.inbox.put(text)
         return "Tamam, bunu da hesaba katıyorum."
 
+    TEACH_START = re.compile(r"\b(sana )?(nasıl yapıldığını |nasıl yapılacağını )?(göstereyim|göstereceğim|göstermek istiyorum)\b"
+                             r"|\bbeni izle\b|\bizle ve öğren\b|\bizleyip öğren\b")
+    TEACH_STOP = re.compile(r"^(tamam |evet |işte )?(bitti|bu kadar|kaydı bitir|öğrenmeyi bitir|izlemeyi bırak|"
+                            r"bitirdim|öğrendin mi)\b")
+
+    def _teach(self, text, t):
+        """Gösterip öğretme: kayıt başlat / bitir. Kayıt sürerken başka komut alınmaz (yanlışlıkla iş yapmasın)."""
+        if self.teacher is None:
+            name = re.sub(r"\b(jarvis|sana|beni|izle|ve|öğren|nasıl|yapıldığını|yapılacağını|göstereyim|göstereceğim|"
+                          r"göstermek|istiyorum|şimdi|bak)\b", " ", t)
+            name = re.sub(r"\s+", " ", name).strip(" ,.") or "gösterilen iş"
+            from .agent.teach import Recorder
+            self.teacher = Recorder(name)
+            return (f"Tamam, izliyorum: {name}. Sen yap, ben tıklamaları ve yazdıklarını kaydediyorum. "
+                    "Bitince 'tamam bitti' de.")
+        if not self.TEACH_STOP.match(t):
+            return "Seni izliyorum. Bitirdiysen 'tamam bitti' de; vazgeçtiysen 'kaydı iptal et'."
+        rec, self.teacher = self.teacher, None
+        steps = rec.stop()
+        if not steps:
+            return "Hiç adım kaydedemedim. Erişilebilirlik izni açık mı? Bir daha göstermek ister misin?"
+        self.skills.save_demo(rec.name, steps)
+        return (f"Öğrendim: {rec.name}, {len(steps)} adım. Bundan sonra benzerini istediğinde bu yolu izleyip "
+                "değişen kısımları (dosya, yazı) isteğine göre uyarlayacağım.")
+
     def _handle(self, text, t, say):
+        if self.teacher is not None:
+            if re.search(r"kayd\S* iptal|vazgeç", t):
+                self.teacher.stop()
+                self.teacher = None
+                return "Tamam, kaydı sildim."
+            return self._teach(text, t)
+        if self.TEACH_START.search(t):
+            return self._teach(text, t)
         if self.fallback:
             orig, intent = self.fallback
             self.fallback = None

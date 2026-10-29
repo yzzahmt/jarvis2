@@ -57,11 +57,35 @@ class Skills:
                 scored.append((score, m["value"]))
         return [v for _, v in sorted(scored, key=lambda x: -x[0])[:k]]
 
+    # ---------------- gösterip öğretme ----------------
+    def save_demo(self, task: str, steps: list[str]):
+        key = "gosterim:" + hashlib.sha1(" ".join(sorted(words(task))).encode()).hexdigest()[:12]
+        try:
+            self.db.remember(key, {"task": task, "steps": steps[:80]}, kind="demo")
+        except ValueError:     # yazılanlarda gizli bilgiye benzeyen var: yazıları gizleyip sakla
+            steps = ["yaz: (gizli metin)" if st.startswith("yaz:") else st for st in steps]
+            self.db.remember(key, {"task": task, "steps": steps[:80]}, kind="demo")
+
+    def demos(self, task: str, k=1, min_score=0.3) -> list[dict]:
+        """Kullanıcının gösterdiği yollar: kelime örtüşmesi daha gevşek (ad kısa, istek uzun olur)."""
+        w = words(task)
+        scored = []
+        for m in self.db.memories("demo"):
+            sw = words(m["value"]["task"])
+            score = len(w & sw) / len(sw) if sw else 0    # gösterimin adındaki kelimelerin ne kadarı istekte
+            if score >= min_score:
+                scored.append((score, m["value"]))
+        return [v for _, v in sorted(scored, key=lambda x: -x[0])[:k]]
+
     def hint(self, task: str) -> str:
+        lines = []
+        for d in self.demos(task):
+            lines.append(f"KULLANICI SANA BUNU BİZZAT GÖSTERDİ (\"{d['task']}\"). Bu yolu izle; ui_read ile aynı öğeleri "
+                         "bul (koordinatlar değişmiş olabilir), dosya adı/yazı gibi değişen kısımları isteğe göre uyarla:")
+            lines += [f"  {n}. {st}" for n, st in enumerate(d["steps"], 1)]
         sk = self.similar(task)
-        if not sk:
-            return ""
-        lines = ["Daha önce benzer görevleri şu adımlarla başardın (örnek; koşullar değişmiş olabilir, doğrula):"]
+        if sk:
+            lines.append("Daha önce benzer görevleri şu adımlarla başardın (örnek; koşullar değişmiş olabilir, doğrula):")
         for s in sk:
             steps = "; ".join(f"{x['tool']}({json.dumps(x['args'], ensure_ascii=False)[:120]})" for x in s["steps"])
             lines.append(f"- \"{s['task']}\": {steps}")

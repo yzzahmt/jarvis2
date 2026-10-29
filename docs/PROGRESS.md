@@ -140,3 +140,6 @@ Aşama 2: görev sürerken dinleme; 'dur' durdurur, diğer sözler çalışan g�
 
 ## 028 (29.10.2026)
 Aşama 4: video aracı (ffmpeg: overlay/text/cut/remove/concat/audio/speed/frame), pointer(inside) oranı, look_image, blender aracı (Blender kurulumu kullanıcı komutunu bekliyor). Ayrıntı: yenilikler/028.
+
+## 029 (29.10.2026)
+Aşama 3: gösterip öğretme (ayrı süreçte fare/klavye + Erişilebilirlik adları kaydı; benzer istekte örnek yol). Ayrıntı: yenilikler/029.

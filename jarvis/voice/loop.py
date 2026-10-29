@@ -303,6 +303,8 @@ class VoiceLoop:
         from .speech_to_text import record_utterance
         idle_until = time.time() + self.v.get("idle_sleep_s", 60)
         while True:
+            if getattr(self.j, "teacher", None) is not None:   # kullanıcı bir şey gösteriyor: uyuma
+                idle_until = time.time() + self.v.get("idle_sleep_s", 60)
             if time.time() > idle_until:
                 self.j.handle("uyu")
                 self.say("Bir süredir komut gelmedi, uyku moduna geçiyorum.")
