@@ -131,3 +131,6 @@ OpenRouter: nemotron-3-ultra (araç çağrısı ✓) + gemma-4-31b (sık meşgul
 Bağlı olmayan Zorin/Mint'ten söz edilmez (iş Mac'te; adı söylendiyse sorar), Mac ikinci kulağı boşken veto yok, 120 sn
 kayıt, yankı ayıklama, süre günlüğü; drag_on/find_on_screen/pointer/unity araçları, uygulama kullanma talimatı, sınırlar
 yükseltildi. 61 test. Ayrıntı: yenilikler/025.
+
+## 026 (29.10.2026)
+Aşama 1: Erişilebilirlik ağacıyla ekranı okuma (ui_read/ui_click/ui_type/ui_menu), görsel model yedek. Ayrıntı: yenilikler/026.

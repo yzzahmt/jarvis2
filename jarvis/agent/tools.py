@@ -172,6 +172,36 @@ def t_vol(ctx, level):
     return f"ses {level}"
 
 
+# ---------------- ekranı okuma (Erişilebilirlik ağacı) ----------------
+@tool("ui_read", "Bir Mac uygulamasının penceresindeki düğme, alan, sekme, menü düğmesi, liste öğelerini numaralı "
+      "listeler (ad + ekran konumu). Uygulamada iş yaparken ÖNCE bunu kullan: hızlı ve kesin. Öğe yoksa look_screen.",
+      app=S("uygulama adı (boş = öndeki)", optional=True), query=S("yalnız adında bu geçenler", optional=True))
+def t_ui_read(ctx, app="", query=""):
+    from ..automation import ax
+    return clip(ax.read(app, query), 6000)
+
+
+@tool("ui_click", "ui_read listesindeki öğeye basar (id). button: left|right|double.", info=False,
+      id=I("öğe numarası"), button=S("left|right|double", optional=True))
+def t_ui_click(ctx, id, button="left"):
+    from ..automation import ax
+    return ax.press(id, button)
+
+
+@tool("ui_type", "ui_read listesindeki metin alanına değeri yazar (eskisini değiştirir).", info=False,
+      id=I("öğe numarası"), text=S("metin"))
+def t_ui_type(ctx, id, text):
+    from ..automation import ax
+    return ax.set_value(id, text)
+
+
+@tool("ui_menu", "Uygulamanın menü çubuğundan seçer, ör. path='Dosya > Dışa Aktar'. Menü adları uygulamanın dilinde; "
+      "bilmiyorsan bir üst menüyü ver, mevcut seçenekler döner.", info=False, app=S("uygulama adı"), path=S("menü yolu"))
+def t_ui_menu(ctx, app, path):
+    from ..automation import ax
+    return ax.menu(app, path)
+
+
 @tool("look_screen", "Mac ekranının görüntüsünü alır ve görsel modele soru sorar (ekranda ne var, buton nerede).",
       question=S("ekranla ilgili soru"))
 def t_look(ctx, question):

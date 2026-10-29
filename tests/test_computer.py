@@ -130,3 +130,18 @@ def test_daily_cloud_cap_falls_back_to_local(tmp_path, monkeypatch):
     assert [b.name for b in br.ready()] == ["g", "yerel"]
     db.remember(f"kullanim:{time.strftime('%Y-%m-%d')}:g", 2, kind="usage")
     assert br.today() == 2 and [b.name for b in br.ready()] == ["yerel"]
+
+
+def test_ui_tools_registered_and_preferred():
+    # 026: uygulama içinde önce Erişilebilirlik ağacı (ui_read), görsel model yedek
+    from jarvis.agent import loop, tools as T
+    assert {"ui_read", "ui_click", "ui_type", "ui_menu"} <= set(T.TOOLS)
+    assert loop.SYSTEM.index("ui_read") < loop.SYSTEM.index("click_on")
+
+
+def test_ui_click_needs_fresh_read():
+    from jarvis.automation import ax
+    ax._cache.clear()
+    import pytest
+    with pytest.raises(LookupError):
+        ax.press(5)
