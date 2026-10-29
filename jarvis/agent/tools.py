@@ -318,10 +318,20 @@ def t_find(ctx, target):
 
 
 @tool("pointer", "Kullanıcının fareyle gösterdiği yer: imlecin koordinatı ve altında ne olduğu. Kullanıcı 'buraya', "
-      "'şuraya', 'bu noktaya', 'gösterdiğim yere' derse önce bunu çağır (kullanıcı imleci o yere getirmiş olur).")
-def t_pointer(ctx):
+      "'şuraya', 'bu noktaya', 'gösterdiğim yere' derse önce bunu çağır (kullanıcı imleci o yere getirmiş olur). "
+      "inside verilirse (ör. 'CapCut video önizlemesi') imlecin o alanın içindeki oranını da verir (video x,y için).",
+      inside=S("alanın tarifi", optional=True))
+def t_pointer(ctx, inside=""):
     from pynput.mouse import Controller
     x, y = (ctx.extra or {}).get("pointer") or Controller().position   # konuşma bittiği andaki yer
+    if inside:
+        p, why = _locate(ctx, inside)
+        if not p:
+            return f"imleç ({int(x)},{int(y)}); '{inside}' bulunamadı: {why}"
+        l, t, r, b = p[2]
+        fx, fy = (x - l) / max(1, r - l), (y - t) / max(1, b - t)
+        where = "içinde" if 0 <= fx <= 1 and 0 <= fy <= 1 else "DIŞINDA"
+        return f"imleç ({int(x)},{int(y)}), '{inside}' {where}: x={fx:.3f}, y={fy:.3f} (soldan/üstten oran)"
     f = config.path("data/tmp/screen.png")
     f.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["screencapture", "-x", "-m", "-C", "-t", "png", str(f)], timeout=10)   # -C: imleç görünsün
@@ -637,3 +647,6 @@ def call(ctx, name, args) -> tuple[str, bool]:
         return f"hatalı parametre: {e}", False
     except Exception as e:
         return f"hata: {type(e).__name__}: {e}"[:400], False
+
+
+from . import media  # noqa: E402,F401  (video, blender, look_image araçlarını kaydeder)

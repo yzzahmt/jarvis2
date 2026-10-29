@@ -137,3 +137,6 @@ Aşama 1: Erişilebilirlik ağacıyla ekranı okuma (ui_read/ui_click/ui_type/ui
 
 ## 027 (29.10.2026)
 Aşama 2: görev sürerken dinleme; 'dur' durdurur, diğer sözler çalışan göreve iletilir; tell_user ile plan/durum. Ayrıntı: yenilikler/027.
+
+## 028 (29.10.2026)
+Aşama 4: video aracı (ffmpeg: overlay/text/cut/remove/concat/audio/speed/frame), pointer(inside) oranı, look_image, blender aracı (Blender kurulumu kullanıcı komutunu bekliyor). Ayrıntı: yenilikler/028.

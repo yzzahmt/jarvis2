@@ -145,3 +145,24 @@ def test_ui_click_needs_fresh_read():
     import pytest
     with pytest.raises(LookupError):
         ax.press(5)
+
+
+def test_video_overlay_lands_where_asked(tmp_path):
+    # 028: "resmi 1. saniyede sağ üste koy" → ffmpeg; asıl dosyaya dokunmaz, kare doğru yerde kırmızı
+    import subprocess
+    import numpy as np
+    from jarvis.agent import media as M
+    F = M.ffmpeg()
+    src, img = tmp_path / "v.mp4", tmp_path / "r.png"
+    subprocess.run([F, "-loglevel", "error", "-f", "lavfi", "-i", "color=black:size=320x180:rate=10:duration=3", str(src)])
+    subprocess.run([F, "-loglevel", "error", "-f", "lavfi", "-i", "color=red:size=50x50", "-frames:v", "1", str(img)])
+    c = type("C", (), {"extra": {}})()
+    r = M.t_video(c, "overlay", str(src), media=str(img), start="1", end="2", x=0.75, y=0.25, width=0.2)
+    out = r.split("hazır: ")[1].split(" (")[0]
+    assert out != str(src) and M.info(out)["sure"] == 3.0
+    raw = subprocess.run([F, "-loglevel", "error", "-ss", "1.5", "-i", out, "-frames:v", "1", "-f", "rawvideo",
+                          "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
+    px = np.frombuffer(raw, np.uint8).reshape(180, 320, 3)
+    assert px[45, 240, 0] > 200 and px[45, 240, 1] < 60      # sağ üstte kırmızı
+    assert px[135, 80, 0] < 30                                 # sol altta yok
+    assert M._out(str(src), out, "ekli") != out                # üzerine yazmaz
