@@ -143,3 +143,6 @@ Aşama 4: video aracı (ffmpeg: overlay/text/cut/remove/concat/audio/speed/frame
 
 ## 029 (29.10.2026)
 Aşama 3: gösterip öğretme (ayrı süreçte fare/klavye + Erişilebilirlik adları kaydı; benzer istekte örnek yol). Ayrıntı: yenilikler/029.
+
+## 030 (29.10.2026)
+Aşama 5: güçlü beyin katmanı (gemini-3.5-flash ×2 anahtar ajan/görmede önce; sohbet lite'ta). Ayrıntı: yenilikler/030.

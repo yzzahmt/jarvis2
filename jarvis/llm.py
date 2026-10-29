@@ -134,6 +134,7 @@ class OpenAICompat:
         self.timeout = cfg.get("timeout_s", 25)   # takılan sağlayıcıda 60 sn beklemesin, sıradakine geçsin
         self.extra = cfg.get("extra") or {}
         self.sees = bool(cfg.get("vision"))
+        self.strong = bool(cfg.get("strong"))     # zor işler (ajan, ekran görme) önce güçlü beyinlerle
         self.last_model, self.last_tokens = self.model, None
 
     def available(self) -> bool:

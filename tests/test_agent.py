@@ -258,3 +258,18 @@ def test_teach_then_used_as_hint(make, monkeypatch):
     h = j.skills.hint("capcut'ta bu videoya altyazı ekle")
     assert "BİZZAT GÖSTERDİ" in h and "düğme 'Metin' tıkla" in h
     assert j.skills.hint("hava nasıl") == ""
+
+
+def test_strong_brains_first_for_agent_last_for_chat(monkeypatch):
+    # 030: ajan/görme önce güçlü model, sohbet hızlı lite model (güçlülerin kotası ajana kalsın)
+    from jarvis.brains import Brains
+    monkeypatch.setenv("K", "x")
+    b = Brains([{"name": "lite", "base_url": "https://a", "model": "l", "api_key_env": "K"},
+                {"name": "guclu", "base_url": "https://a", "model": "g", "api_key_env": "K", "strong": True}])
+    used = []
+    for x in b.all:
+        monkeypatch.setattr(x, "chat_tools", lambda *a, n=x.name, **k: used.append(n) or Reply("ok", [], 1))
+        monkeypatch.setattr(x, "chat", lambda *a, n=x.name, **k: used.append(n) or "ok")
+    b.chat_tools([], [])
+    b.chat([])
+    assert used == ["guclu", "lite"]

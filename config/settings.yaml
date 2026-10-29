@@ -63,6 +63,9 @@ agent:                    # genel ajan (sabit komutlara uymayan istekler)
 # Anahtarlar Jarvis/.env içinde (git dışı). Anahtarı olmayan atlanır. Son sıradaki yerel model hep çalışır.
 # Model adları değişebilir: sağlayıcının /models listesinden güncelle.
 brains:
+  # strong: ajan (uygulama kullanma, çok adımlı iş) ve ekran görmede önce bunlar; sohbet/yönlendirme lite ile hızlı kalır.
+  - {name: gemini-guclu, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-3.5-flash, api_key_env: GEMINI_API_KEY, vision: true, strong: true, timeout_s: 40, extra: {reasoning_effort: low}}   # 29.10: araç çağrısı ✓ ~3 sn; pro modellerin ücretsiz kotası 0
+  - {name: gemini-guclu-2, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-3.5-flash, api_key_env: GEMINI_API_KEY_2, vision: true, strong: true, timeout_s: 40, extra: {reasoning_effort: low}}
   - {name: gemini, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-3.5-flash-lite, api_key_env: GEMINI_API_KEY, vision: true, extra: {reasoning_effort: minimal}}   # 2.5-flash kaldırıldı (404)
   - {name: gemini-yedek, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-flash-latest, api_key_env: GEMINI_API_KEY, vision: true}
   - {name: gemini-2, base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: gemini-3.5-flash-lite, api_key_env: GEMINI_API_KEY_2, vision: true, extra: {reasoning_effort: minimal}}   # 2. anahtar: kota iki katı

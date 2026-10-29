@@ -61,9 +61,14 @@ class Brains:
         with self.lock:
             self.until[b.name] = float("inf") if sec is None else time.time() + sec
 
-    def _try(self, fn_name, *a, only=None, **k):
+    def _try(self, fn_name, *a, only=None, strong=False, **k):
         errors = []
-        for b in filter(only or bool, self.ready()):
+        order = self.ready()
+        if strong:          # güçlü beyinler önce, sonra hızlı/lite olanlar (sıra korunur)
+            order = sorted(order, key=lambda b: not getattr(b, "strong", False))
+        else:               # sohbet/yönlendirme: güçlüler en sona (hız + kotaları ajan işlerine kalsın)
+            order = sorted(order, key=lambda b: getattr(b, "strong", False))
+        for b in filter(only or bool, order):
             try:
                 out = getattr(b, fn_name)(*a, **k)
                 self.last_model, self.last_tokens = f"{b.name}:{b.model}", b.last_tokens
@@ -84,7 +89,7 @@ class Brains:
                 pass
 
     def chat_tools(self, messages, tools, model=None, max_tokens=1200):
-        return self._try("chat_tools", messages, tools, max_tokens=max_tokens)
+        return self._try("chat_tools", messages, tools, max_tokens=max_tokens, strong=True)
 
     def chat(self, messages, max_tokens=400):
         return self._try("chat", messages, max_tokens=max_tokens)
@@ -96,7 +101,7 @@ class Brains:
         return any(b.sees for b in self.ready())
 
     def vision(self, question, image_path):
-        return self._try("vision", question, image_path, only=lambda b: b.sees)
+        return self._try("vision", question, image_path, only=lambda b: b.sees, strong=True)
 
     # mesaj biçimi tüm sağlayıcılarda aynı
     def assistant_msg(self, rep):
