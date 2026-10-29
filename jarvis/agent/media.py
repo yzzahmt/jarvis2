@@ -200,7 +200,11 @@ BLENDER_PRE = """import bpy, bmesh, math, mathutils, os, sys
 from mathutils import Vector, Euler
 def jarvis_render(path, res=900):
     sc = bpy.context.scene
-    objs = [o for o in sc.objects if o.type == 'MESH']
+    objs = [o for o in sc.objects if o.type == 'MESH' and o.visible_get()]
+    def flat(o):   # zemin/düzlem kadrajı büyütmesin: yüksekliği yok denecek kadar az olanlar
+        d = o.dimensions
+        return min(d) < 0.01 * max(max(d), 1e-6)
+    objs = [o for o in objs if not flat(o)] or objs
     if not objs:
         return
     pts = [o.matrix_world @ Vector(c) for o in objs for c in o.bound_box]
@@ -212,7 +216,7 @@ def jarvis_render(path, res=900):
         cam = bpy.data.objects.new('JarvisCam', bpy.data.cameras.new('JarvisCam'))
         sc.collection.objects.link(cam)
         sc.camera = cam
-    cam.location = mid + Vector((1.1, -1.4, 0.7)) * size
+    cam.location = mid + Vector((0.9, -1.15, 0.5)) * size
     cam.rotation_euler = (mid - cam.location).to_track_quat('-Z', 'Y').to_euler()
     if not any(o.type == 'LIGHT' for o in sc.objects):
         sun = bpy.data.objects.new('JarvisSun', bpy.data.lights.new('JarvisSun', 'SUN'))
@@ -221,6 +225,10 @@ def jarvis_render(path, res=900):
         sc.collection.objects.link(sun)
     if sc.world is None:
         sc.world = bpy.data.worlds.new('W')
+    sc.world.use_nodes = True
+    bg = sc.world.node_tree.nodes.get('Background')
+    if bg and max(bg.inputs[0].default_value[:3]) < 0.1:      # varsayılan koyu gri dünya: aydınlık stüdyo yap
+        bg.inputs[0].default_value, bg.inputs[1].default_value = (0.6, 0.65, 0.7, 1), 0.8
     sc.render.engine = 'BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in [e.identifier for e in
         bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items] else 'BLENDER_EEVEE'
     sc.render.resolution_x = sc.render.resolution_y = res

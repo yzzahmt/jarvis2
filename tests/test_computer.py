@@ -166,3 +166,18 @@ def test_video_overlay_lands_where_asked(tmp_path):
     assert px[45, 240, 0] > 200 and px[45, 240, 1] < 60      # sağ üstte kırmızı
     assert px[135, 80, 0] < 30                                 # sol altta yok
     assert M._out(str(src), out, "ekli") != out                # üzerine yazmaz
+
+
+def test_blender_builds_saves_renders(tmp_path):
+    # 032: blender aracı (HDD'deki Blender) model kurar, .blend kaydeder, zemini kadraja almadan render eder
+    import pytest
+    from jarvis.agent import media as M
+    if not M.BLENDER.exists():
+        pytest.skip("Blender kurulu değil")
+    code = ("bpy.ops.mesh.primitive_plane_add(size=50)\n"
+            "print('JARVIS: nesne', len(bpy.data.objects))")
+    r = M.t_blender(None, code, save=str(tmp_path / "a.blend"), render=str(tmp_path / "a.png"))
+    assert "[çıkış 0]" in r and "JARVIS: nesne 4" in r
+    assert (tmp_path / "a.blend").exists() and (tmp_path / "a.png").stat().st_size > 5000
+    bad = M.t_blender(None, "olmayan_fonksiyon()")
+    assert "çıkış 0" not in bad and "NameError" in bad

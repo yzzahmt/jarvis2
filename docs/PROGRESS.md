@@ -149,3 +149,6 @@ Aşama 5: güçlü beyin katmanı (gemini-3.5-flash ×2 anahtar ajan/görmede ö
 
 ## 031 (29.10.2026)
 CapCut uçtan uca deneme 43 → 13 sn: open_app pencereyi bekler, ui_read diğer pencereler + AXManualAccessibility, sessiz bitişte özet, 429 retryDelay kadar bekleme, görme hızlı modelde. Ayrıntı: yenilikler/031.
+
+## 032 (29.10.2026)
+Blender 5.2.3 HDD'ye kuruldu (7-Zip ile); blender aracı ve Blender → FBX → Unity (create/import/run) zinciri gerçek denemede çalıştı. Ayrıntı: yenilikler/032.

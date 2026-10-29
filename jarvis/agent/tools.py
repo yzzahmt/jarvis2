@@ -561,7 +561,8 @@ def _unity_batch(args, timeout=900) -> str:
     out = r.stdout + r.stderr
     if "another Unity instance is running" in out or "It looks like another Unity instance" in out:
         return "HATA: proje Unity'de açık. Batch işlem için önce Unity'de projeyi kapat (ya da kullanıcıya sor)."
-    errs = [l for l in out.splitlines() if re.search(r"error|exception|JARVIS:", l, re.I)][-15:]
+    errs = [ln for ln in out.splitlines() if re.search(r"error CS\d+|\w+Exception:|JARVIS:|^Error|Aborting batchmode", ln)
+            and "Licensing" not in ln][-15:]   # lisans uyarısı zararsız; "ValidationExceptions.json" gibi adlar hata değil
     return f"[çıkış {r.returncode}]\n" + ("\n".join(errs) or out[-800:])
 
 
