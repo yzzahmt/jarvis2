@@ -81,9 +81,9 @@ def route(text: str, machines: dict) -> Intent | None:
         return Intent("open_url", {"url": url if url.startswith("http") else "https://" + url}, machine=m())
     if re.search(r"\btest\S*\b.*\b(çalıştır|koş|başlat|yap)", t):
         proj = re.search(r"(\S+) (projesi|projesinin|projemin|klasör)", t)
-        return Intent("run_tests", {"project": proj.group(1) if proj else None}, machine=m("zorin"))
+        return Intent("run_tests", {"project": proj.group(1) if proj else None}, machine=m())
     if re.search(r"\b(kod|hata\S* düzelt|düzelt|refactor|fonksiyon|geliştir|bug)\b", t):
-        return Intent("code", {"task": text}, machine=m("zorin"))
+        return Intent("code", {"task": text}, machine=m())
     mm = re.match(r"^(.+?)(?:'?(?:yi|yı|yu|yü|i|ı|u|ü))?(?: uygulamasını| programını)? (aç|başlat)$", t)
     if mm:
         return Intent("open_app", {"app": _strip_machine(mm.group(1), machines)}, machine=m())
@@ -97,10 +97,13 @@ LLM_SYSTEM = (
     "args: youtube->{query}, open_app->{app}, open_url->{url}, run_tests->{project}, code->{task}, agent->{task}. "
     "agent: bilgisayarda iş yapmayı gerektiren ama diğer intentlere uymayan her istek (dosya bulma/düzenleme, "
     "web'de araştırma, uygulama veya ayar kontrolü, çok adımlı işler). Sohbet ve bilgi sorusu chat'tir. "
-    "zorin: kodlama/test makinesi, mint: tarayıcı/YouTube makinesi, varsayılan mac. "
+    "machine her zaman mac'tir; yalnızca kullanıcı cümlede Zorin ya da Mint'i açıkça söylerse o makine. "
+    "code yalnızca kullanıcının mevcut bir projesinin kodunu yazma/düzeltme işidir; bir uygulamayı kullanarak iş yapmak "
+    "(Unity, Blender, Photoshop, Finder, ayarlar…) agent'tir. "
     "Şarkı/müzik/video çalma veya izleme her zaman youtube'dur. open_app yalnızca uygulama adı içindir. Örnekler: "
     '"tarkanın son şarkısını çal" -> {"intent":"youtube","args":{"query":"tarkan son şarkı"},"machine":"mint"}; '
-    '"oyunumdaki hatayı düzelt" -> {"intent":"code","args":{"task":"oyundaki hatayı düzelt"},"machine":"zorin"}; '
+    '"oyunumdaki hatayı düzelt" -> {"intent":"code","args":{"task":"oyundaki hatayı düzelt"},"machine":"mac"}; '
+    '"unityde araba modeli yap" -> {"intent":"agent","args":{"task":"unityde araba modeli yap"},"machine":"mac"}; '
     '"masaüstündeki pdfleri listele" -> {"intent":"agent","args":{"task":"masaüstündeki pdf dosyalarını listele"},"machine":"mac"}; '
     '"nasılsın" -> {"intent":"chat","args":{},"machine":"mac","reply":"İyiyim, teşekkürler."}. Sadece JSON yaz.')
 

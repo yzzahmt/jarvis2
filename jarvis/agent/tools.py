@@ -81,10 +81,8 @@ def t_shell(ctx, command, machine="mac"):
     if DANGER.search(command):
         return "REDDEDİLDİ: tehlikeli komut"
     a = ctx.agents.get(machine)
-    if not a or not a.configured:
-        return f"{machine} bağlı değil"
-    if not a.online():
-        return f"{machine} çevrimdışı"
+    if not a or not a.configured or not a.online():
+        machine, a = "mac", ctx.agents.get("mac")      # bağlı olmayan makine: işi Mac'te yap
     r = a.run(command, timeout=120, stop=ctx.stop)
     return clip(f"[çıkış {r.code}]\n{r.out}\n{r.err}")
 
@@ -243,16 +241,13 @@ BOX_Q = ('Bu ekran görüntüsünde şu öğeyi bul: "{t}". YALNIZCA JSON dönd�
          '(0-1000 arası normalize). Öğe yoksa {{"box_2d": null, "neden": "kısa açıklama"}}.')
 
 
-@tool("click_on", "Mac ekranında TARİF EDİLEN öğeyi görerek bulur ve tıklar (herhangi bir uygulamada: buton, simge, menü, "
-      "metin kutusu). Ör. target='Finder kenar çubuğunda İndirilenler', 'Spotify'da oynat butonu'. "
-      "Tarayıcı sayfalarında browser aracını tercih et.", info=False,
-      target=S("öğenin açık tarifi"), button=S("left|right|double", optional=True))
-def t_click_on(ctx, target, button="left"):
+def _locate(ctx, target):
+    """Tarif edilen öğenin ekrandaki merkezi (nokta) ve kutusu; bulunamazsa (None, neden)."""
     f = config.path("data/tmp/screen.png")
     f.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["screencapture", "-x", "-m", "-t", "png", str(f)], timeout=10)   # -m: ana ekran
     if not f.exists():
-        return "ekran görüntüsü alınamadı (Sistem Ayarları > Gizlilik > Ekran Kaydı izni gerekli)"
+        return None, "ekran görüntüsü alınamadı (Sistem Ayarları > Gizlilik > Ekran Kaydı izni gerekli)"
     subprocess.run(["sips", "-Z", "1600", str(f)], capture_output=True)
     try:
         out = ctx.vision(BOX_Q.format(t=target), f)
@@ -260,13 +255,91 @@ def t_click_on(ctx, target, button="left"):
         f.unlink(missing_ok=True)
     m = re.search(r"\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]", out or "")
     if not m:
-        return f"bulunamadı: {clip(out or 'görsel model yanıt vermedi', 200)}"
+        return None, f"bulunamadı: {clip(out or 'görsel model yanıt vermedi', 200)}"
     y0, x0, y1, x1 = (int(v) for v in m.groups())
     w, h = _screen_size()
-    x, y = (x0 + x1) / 2000 * w, (y0 + y1) / 2000 * h
+    box = (int(x0 / 1000 * w), int(y0 / 1000 * h), int(x1 / 1000 * w), int(y1 / 1000 * h))
+    return ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2, box), ""
+
+
+@tool("click_on", "Mac ekranında TARİF EDİLEN öğeyi görerek bulur ve tıklar (herhangi bir uygulamada: buton, simge, menü, "
+      "metin kutusu). Ör. target='Finder kenar çubuğunda İndirilenler', 'Spotify'da oynat butonu'. "
+      "Tarayıcı sayfalarında browser aracını tercih et.", info=False,
+      target=S("öğenin açık tarifi"), button=S("left|right|double", optional=True))
+def t_click_on(ctx, target, button="left"):
+    p, why = _locate(ctx, target)
+    if not p:
+        return why
+    x, y, _ = p
     _mouse_click(x, y, button)
     time.sleep(0.4)
     return f"'{target}' tıklandı ({int(x)},{int(y)}). Sonucu doğrulamak için gerekirse look_screen."
+
+
+@tool("find_on_screen", "Tarif edilen öğenin ekrandaki yerini (nokta koordinatı ve kutu: sol,üst,sağ,alt) söyler, "
+      "tıklamaz. Zaman çizelgesinde klibin kenarı, kaydırıcı, 3B görünümde nesne gibi yerler için; sonra mouse/click.",
+      target=S("öğenin açık tarifi"))
+def t_find(ctx, target):
+    p, why = _locate(ctx, target)
+    if not p:
+        return why
+    x, y, box = p
+    return f"'{target}': merkez ({int(x)},{int(y)}), kutu {box}"
+
+
+@tool("pointer", "Kullanıcının fareyle gösterdiği yer: imlecin koordinatı ve altında ne olduğu. Kullanıcı 'buraya', "
+      "'şuraya', 'bu noktaya', 'gösterdiğim yere' derse önce bunu çağır (kullanıcı imleci o yere getirmiş olur).")
+def t_pointer(ctx):
+    from pynput.mouse import Controller
+    x, y = (ctx.extra or {}).get("pointer") or Controller().position   # konuşma bittiği andaki yer
+    f = config.path("data/tmp/screen.png")
+    f.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["screencapture", "-x", "-m", "-C", "-t", "png", str(f)], timeout=10)   # -C: imleç görünsün
+    what = ""
+    if f.exists():
+        subprocess.run(["sips", "-Z", "1280", str(f)], capture_output=True)
+        try:
+            w, h = _screen_size()
+            what = ctx.vision(f"Ekranın soldan %{100 * x / w:.0f}, üstten %{100 * y / h:.0f} noktasında ne var? "
+                              "Uygulama, panel ve öğeyi kısaca söyle (video önizlemesindeyse görüntünün neresi: sol üst, orta vb.).", f)
+        except Exception:
+            what = ""
+        finally:
+            f.unlink(missing_ok=True)
+    return f"imleç ({int(x)},{int(y)}). {clip(what, 400)}"
+
+
+@tool("drag_on", "Ekranda tarif edilen öğeyi tarif edilen yere sürükler (ör. CapCut'ta klibi zaman çizelgesine, "
+      "klibin sağ kenarını sola; Unity'de nesneyi sahneye). to_target yerine dx/dy (nokta) da verilebilir.", info=False,
+      source=S("sürüklenecek öğe"), to_target=S("bırakılacak yer", optional=True),
+      dx=I("yatay kaydırma (nokta)", optional=True), dy=I("dikey kaydırma (nokta)", optional=True))
+def t_drag_on(ctx, source, to_target="", dx=0, dy=0):
+    a, why = _locate(ctx, source)
+    if not a:
+        return why
+    if to_target:
+        b, why = _locate(ctx, to_target)
+        if not b:
+            return why
+        tx, ty = b[0], b[1]
+    else:
+        tx, ty = a[0] + dx, a[1] + dy
+    _drag(a[0], a[1], tx, ty)
+    return f"sürüklendi ({int(a[0])},{int(a[1])}) → ({int(tx)},{int(ty)}). Sonucu look_screen ile doğrula."
+
+
+def _drag(x, y, tx, ty, steps=20):
+    from pynput.mouse import Button, Controller
+    m = Controller()
+    m.position = (int(x), int(y))
+    time.sleep(0.1)
+    m.press(Button.left)
+    for i in range(1, steps + 1):          # yavaş hareket: uygulamalar sürüklemeyi algılasın
+        m.position = (int(x + (tx - x) * i / steps), int(y + (ty - y) * i / steps))
+        time.sleep(0.02)
+    time.sleep(0.1)
+    m.release(Button.left)
+    time.sleep(0.3)
 
 
 @tool("mouse", "Fare: scroll (amount: + aşağı, - yukarı), move(x,y), drag(x,y → to_x,to_y).", info=False,
@@ -375,21 +448,20 @@ def t_browser(ctx, action, **a):
 AI_WEB = ("gemini", "chatgpt")
 
 
-@tool("ask_ai", "Büyük işi başka bir yapay zekâ aracına verir. target: kod (Zorin OS'ta Gemini CLI/aider proje klasöründe "
-      "kod yazar/düzeltir) | gemini | chatgpt (tarayıcıdaki sohbet: araştırma, uzun yazı, fikir). "
+@tool("ask_ai", "Büyük işi başka bir yapay zekâ aracına verir. target: kod (Gemini CLI/aider proje klasöründe "
+      "kod yazar/düzeltir; kurulu değilse kodu kendin write_file/shell ile yaz) | gemini | chatgpt (tarayıcıdaki sohbet: araştırma, uzun yazı, fikir). "
       "Bağlamı içeren, net ve iyi yazılmış bir prompt ver.",
       risk=lambda a: a.get("target", "kod") not in AI_WEB, prompt=S("prompt"),
       target=S("kod|gemini|chatgpt (varsayılan kod)", optional=True),
-      machine=S("kod için makine (varsayılan zorin)", optional=True),
+      machine=S("kod için makine (varsayılan: bağlıysa zorin, değilse mac)", optional=True),
       workdir=S("kod için proje klasörü (proje dizini altında)", optional=True))
-def t_ask_ai(ctx, prompt, target="kod", machine="zorin", workdir=""):
+def t_ask_ai(ctx, prompt, target="kod", machine="", workdir=""):
     if target in AI_WEB:
         return clip(ctx.browser().do("ai_chat", timeout=200, site=target, text=prompt), 4000)
+    machine = machine or "zorin"
     a = ctx.agents.get(machine)
-    if not a or not a.configured:
-        return f"{machine} bağlı değil"
-    if not a.online():
-        return f"{machine} çevrimdışı"
+    if not a or not a.configured or not a.online():
+        machine, a = "mac", ctx.agents.get("mac")       # bağlı değilse Mac'te
     base = (ctx.machines.get(machine) or {}).get("project_dir", "~/projeler").rstrip("/")
     d = workdir.rstrip("/") or base
     if not d.startswith(("/", "~")):
@@ -400,6 +472,91 @@ def t_ask_ai(ctx, prompt, target="kod", machine="zorin", workdir=""):
     if name is None:
         return f"{machine} makinesinde gemini veya aider kurulu değil"
     return clip(f"[{name}, çıkış {r.code}]\n{r.out}\n{r.err}", 4000)
+
+
+# ---------------- Unity ----------------
+UNITY_HUB = "/Applications/Unity/Hub/Editor"
+RUN_CS = """using UnityEditor;
+using UnityEngine;
+{code}
+"""
+
+
+def unity_bin() -> str | None:
+    """Kurulu en yeni Unity editörü (Unity Hub ile kurulmuş)."""
+    try:
+        vers = sorted(os.listdir(UNITY_HUB), key=lambda v: [int(x) if x.isdigit() else x for x in re.split(r"[.a-z]", v)])
+    except OSError:
+        return None
+    for v in reversed(vers):
+        b = f"{UNITY_HUB}/{v}/Unity.app/Contents/MacOS/Unity"
+        if os.path.exists(b):
+            return b
+    return None
+
+
+def _unity_batch(args, timeout=900) -> str:
+    b = unity_bin()
+    if not b:
+        return "Unity kurulu değil (Unity Hub > Installs)"
+    try:
+        r = subprocess.run([b, "-batchmode", "-quit", "-nographics", "-logFile", "-", *args],
+                           capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return f"Unity {timeout} sn içinde bitmedi"
+    out = r.stdout + r.stderr
+    if "another Unity instance is running" in out or "It looks like another Unity instance" in out:
+        return "HATA: proje Unity'de açık. Batch işlem için önce Unity'de projeyi kapat (ya da kullanıcıya sor)."
+    errs = [l for l in out.splitlines() if re.search(r"error|exception|JARVIS:", l, re.I)][-15:]
+    return f"[çıkış {r.returncode}]\n" + ("\n".join(errs) or out[-800:])
+
+
+@tool("unity", "Unity editörü. action: create (yeni proje; project=tam yol) | import (path'teki dosya/zip/klasörü "
+      "Assets/Imported altına alır) | run (code: 'public static class JarvisRun { public static void Run() {...} }' "
+      "biçiminde C# editör betiği; using UnityEditor/UnityEngine hazır; sahne kurma, prefab, malzeme, dışa aktarma; "
+      "Debug.Log(\"JARVIS: ...\") çıktısı döner) | open (projeyi Unity'de görünür açar).",
+      risk=lambda a: a.get("action") == "run", action=S("create|import|run|open"), project=S("proje klasörünün tam yolu"),
+      path=S("import için dosya/klasör yolu", optional=True), code=S("run için C# kodu", optional=True))
+def t_unity(ctx, action, project, path="", code=""):
+    proj = os.path.expanduser(project)
+    if action == "create":
+        if os.path.exists(os.path.join(proj, "Assets")):
+            return "proje zaten var: " + proj
+        os.makedirs(os.path.dirname(proj.rstrip("/")) or ".", exist_ok=True)
+        return _unity_batch(["-createProject", proj]) + "\nproje: " + proj
+    if not os.path.isdir(os.path.join(proj, "Assets")):
+        return "Unity projesi bulunamadı: " + proj
+    if action == "import":
+        src = os.path.expanduser(path)
+        if not os.path.exists(src):
+            return "dosya yok: " + src
+        dst = os.path.join(proj, "Assets", "Imported")
+        os.makedirs(dst, exist_ok=True)
+        if src.lower().endswith(".zip"):
+            r = subprocess.run(["ditto", "-x", "-k", src, os.path.join(dst, Path(src).stem)], capture_output=True, text=True)
+        else:
+            r = subprocess.run(["cp", "-R", src, dst], capture_output=True, text=True)
+        if r.returncode:
+            return "kopyalanamadı: " + r.stderr[-300:]
+        files = [str(p.relative_to(proj)) for p in Path(dst).rglob("*") if p.suffix.lower() in
+                 (".fbx", ".obj", ".gltf", ".glb", ".blend", ".prefab", ".unitypackage")]
+        return clip("alındı. modeller:\n" + "\n".join(files[:40]))
+    if action == "run":
+        if "JarvisRun" not in code or "Run(" not in code:
+            return "code 'public static class JarvisRun { public static void Run() {...} }' içermeli"
+        ed = os.path.join(proj, "Assets", "Editor")
+        os.makedirs(ed, exist_ok=True)
+        with open(os.path.join(ed, "JarvisRun.cs"), "w") as f:
+            f.write(RUN_CS.format(code=code))
+        return clip(_unity_batch(["-projectPath", proj, "-executeMethod", "JarvisRun.Run"]))
+    if action == "open":
+        b = unity_bin()
+        if not b:
+            return "Unity kurulu değil"
+        subprocess.Popen([b, "-projectPath", proj], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+        return "Unity açılıyor (ilk açılış birkaç dakika sürebilir): " + proj
+    return "action: create|import|run|open"
 
 
 # ---------------- hafıza / kullanıcı ----------------

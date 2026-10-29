@@ -154,7 +154,22 @@ class VoiceLoop:
             return False
         from .speech_to_text import _words
         a, b = _words(text), set(_words(said))
-        return bool(a) and sum(w in b for w in a) / len(a) >= 0.7
+        return len(a) >= 2 and sum(w in b for w in a) / len(a) >= 0.8
+
+    def strip_self(self, text) -> str:
+        """Söze girilince kaydın başında Jarvis'in kendi sesinin kuyruğu olabilir: baştaki, onun söylediği
+        kelimeleri at, kullanıcının sözü kalsın (önceden tamamı 'kendi sesi' sayılıp kullanıcının sözü siliniyordu)."""
+        said, at = getattr(self, "said", ("", 0))
+        if not said or time.time() - at > 20:
+            return text
+        from .speech_to_text import _words
+        b = set(_words(said))
+        toks = text.split()
+        i = 0
+        while i < len(toks) and (not _words(toks[i]) or all(w in b for w in _words(toks[i]))):
+            i += 1
+        rest = " ".join(toks[i:])
+        return rest if i >= 2 and len(_words(rest)) >= 1 else text
 
     def say(self, text, interruptible=True):
         """Konuşur. Kullanıcı söze girerse (ChatGPT gibi) hemen susar; söylediğinin başı self.preroll'da kalır."""
@@ -167,7 +182,7 @@ class VoiceLoop:
         if pre:
             self.preroll = pre
         else:
-            time.sleep(0.2)
+            time.sleep(0.4)        # hoparlör tamponu biter (0,2 sn'de son hece mikrofona kalıyordu)
             self.mic.drain()       # kendi sesini komut sanmasın
         if self.ww:
             self.ww.reset()
@@ -200,7 +215,7 @@ class VoiceLoop:
                 hot = 0
                 if play > 0.01:
                     gain = max(0.97 * gain, min(lvl / play, 0.15), 0.03)   # yankı oranının üst zarfı
-            if hot >= 4 or woke:             # ~0,3 sn süren konuşma
+            if hot >= 4 or woke:             # ~0,3 sn süren konuşma: söze girince hemen sus, dinle
                 self.tts.stop()
                 status("SÖZÜM KESİLDİ — dinliyorum")
                 return list(ring)
@@ -217,11 +232,16 @@ class VoiceLoop:
         """Soruyu söyle, tek cümlelik cevabı dinle (cevap yoksa "" -> onay verilmemiş sayılır)."""
         from .speech_to_text import record_utterance
         self.say(question)
-        self.ui.state("listening")
-        audio = record_utterance(self.mic.frames(), RATE, start_timeout=10, preroll=self._take_preroll())
-        ans = self.stt.transcribe(audio) if audio is not None else ""
-        status(f"sen> {ans}")
-        return ans
+        for _ in range(2):                   # kendi sesini cevap sanıp isteği iptal etmesin
+            self.ui.state("listening")
+            audio = record_utterance(self.mic.frames(), RATE, start_timeout=10, preroll=self._take_preroll())
+            ans = self.strip_self(self.stt.transcribe(audio)) if audio is not None else ""
+            if ans and self.heard_self(ans):
+                status(f"yok sayıldı (kendi sesi): {ans}")
+                continue
+            status(f"sen> {ans}")
+            return ans
+        return ""
 
     def sleep_mode(self):
         status("UYKU — 'hey jarvis', kısayol" + (" veya çift alkış" if self.clap else "") + " ile uyanır")
@@ -257,7 +277,7 @@ class VoiceLoop:
         reply = self.v.get("wake_reply", "Sizi dinliyorum.")
         if src == "word" and reply and not extra:
             self.ui.message("jarvis", reply)
-            self.say(reply)                  # söze girersen susar, sözün kaybolmaz (preroll)
+            self.say(reply, interruptible=False)   # kısa; kendi sesiyle "sözüm kesildi" olup yankıyı komut sanıyordu
         elif src == "clap" and not extra:
             clap_chime()
             self.ui.message("jarvis-interim", "Dinliyorum…")
@@ -284,8 +304,15 @@ class VoiceLoop:
             if audio is None:
                 status(f"duyulmadı (en yüksek seviye {st.get('peak')}, eşik {st.get('th')})")
                 continue
+            try:                             # "buraya" dediği an fare neredeydi (pointer aracı bunu kullanır)
+                from pynput.mouse import Controller
+                self.j.pointer = Controller().position
+            except Exception:
+                self.j.pointer = None
             self.ui.state("thinking")
-            text = self.stt.transcribe(audio)
+            t0 = time.time()
+            text = self.strip_self(self.stt.transcribe(audio))
+            t_stt = time.time() - t0
             if self.stt.apple_err:
                 status(f"Mac tanıması çalışmadı: {self.stt.apple_err}")
                 self.stt.apple_err = ""
@@ -300,7 +327,9 @@ class VoiceLoop:
             status(f"sen> {text}")
             self.ui.message("user", text)
             idle_until = time.time() + self.v.get("idle_sleep_s", 60)
+            t0 = time.time()
             reply = self.j.handle(text, say=self.say, ask=self.ask)
+            status(f"süre: anlama {t_stt:.1f} sn ({self.stt.last}), cevap {time.time() - t0:.1f} sn")
             self.ui.message("jarvis", reply)
             self.say(reply)
             if not self.j.awake:

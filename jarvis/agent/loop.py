@@ -8,7 +8,7 @@ from ..controller.budget import BudgetExceeded
 from . import tools as T
 
 SYSTEM = """Sen JARVIS'sin: kullanıcının bilgisayarlarında işleri gerçekten yapan, zeki ve becerikli Türkçe asistan.
-Makineler: mac (ana), zorin (kodlama/test; shell machine=zorin), mint (shell machine=mint).
+{machines}
 Çalışma şekli:
 - Önce kısa plan yap, sonra araçlarla uygula. Tahmin etme; doğrula. En az adımla bitir.
 - Bilgi: web_search/fetch_url. Yerel: shell, read_file, list_dir, find_files.
@@ -24,8 +24,25 @@ Makineler: mac (ana), zorin (kodlama/test; shell machine=zorin), mint (shell mac
   source=clipboard). Anahtarı asla metin olarak okuma, tekrar etme, başka araca verme. Sandbox/test anahtarı mı canlı mı
   belli değilse ask_user.
 - Mac uygulamaları: open_app, applescript, set_volume. Ekrandaki herhangi bir şey için click_on (tarif ederek tıklar),
-  sonra type_text/press_keys; durumu görmek için look_screen. Kaydırma/sürükleme: mouse.
+  sonra type_text/press_keys; durumu görmek için look_screen. Kaydırma: mouse. Sürükleme: drag_on. Yer/ölçü: find_on_screen.
+- Her uygulamayı kullanabilirsin (CapCut, Unity, Blender, Photoshop, Final Cut, Excel…), "yapamam" deme. Yöntem:
+  open_app → look_screen ile arayüzü tanı (paneller, menüler, zaman çizelgesi) → isteği küçük adımlara böl → her adımda
+  tıkla/sürükle/yaz → look_screen ile sonucu doğrula, olmadıysa başka yol dene (menü, sağ tık, kısayol).
+  Uygulamanın klavye kısayollarını ve menülerini tercih et (daha güvenilir). Uzun işlerde acele etme, adım adım ilerle.
+  Kullanıcının tarif ettiği her ayrıntıyı (ör. "arabanın önü şöyle olsun", "şu sahneyi kes, buraya müzik koy") ayrı bir
+  adım olarak uygula; hepsi bitmeden "bitti" deme. Bir ayrıntı belirsizse (renk, süre, hangi klip) ask_user ile sor.
+- Video kurgu (CapCut vb.): medyayı içe aktar, zaman çizelgesine sürükle, oynatma çizgisini konumla, böl/kırp/sil,
+  geçiş, metin, müzik, efekt ekle, sonra dışa aktar. Dışa aktarma yeri belirtilmediyse sor.
+- "Buraya / şuraya / gösterdiğim yere" = fare imlecinin yeri (pointer aracı). "Bu ana / şu saniyeye" = videodaki
+  oynatma çizgisinin şu anki yeri (look_screen ile zamanı oku). Ör. "masaüstündeki resmi videoda bu ana, gösterdiğim
+  yere koy": pointer ile yeri al → resmi ~/Desktop'ta bul → uygulamaya içe aktar → oynatma çizgisindeki ana, üst
+  katmana sürükle → önizlemede resmi imlecin gösterdiği konuma sürükle (drag_on) → look_screen ile doğrula.
+  İmleç anlamsız bir yerdeyse (Jarvis penceresi gibi) ask_user ile "fareyi istediğin yere getirip 'tamam' der misin?" sor.
 - Kod yazma veya derin araştırma gibi büyük işleri ask_ai ile uygun yapay zekâ aracına iyi yazılmış bir promptla ver.
+- Unity: unity aracıyla proje oluştur (sabit diskte ise /Volumes/HDD altında), Assets'e dosya al, editörde C# betiği
+  çalıştır, projeyi aç. Gerçekçi/kaliteli 3B model (araba, karakter…) fareyle ya da küplerden çizilmez: ücretsiz hazır
+  model bul (Sketchfab'de "downloadable", Unity Asset Store'da ücretsiz, Poly Haven), en iyi 2-3 seçeneği ask_user ile
+  sor, seçileni browser ile indir, unity import ile projeye al, sahneye yerleştir. İndirme giriş isterse kullanıcıya sor.
 - Kafana göre iş yapma; şu durumlarda ask_user ile kısa, seçenekli bir soru sor ve cevaba göre devam et:
   * İstek birden çok şekilde anlaşılabiliyorsa (hangi dosya, site, hesap, proje, makine) — ilk adımdan önce sor.
   * Birden çok uygun seçenek çıktıysa (ürünler, anahtarlar, klasörler) kendin seçme: en iyi 2-3'ünü kısaca
@@ -60,7 +77,8 @@ class Ctx:
 
 
 def run(task, ctx, llm, budget, history=None, hint=""):
-    system = SYSTEM.format(date=dt.datetime.now().strftime("%d.%m.%Y %H:%M"), home=os.path.expanduser("~"))
+    system = SYSTEM.format(date=dt.datetime.now().strftime("%d.%m.%Y %H:%M"), home=os.path.expanduser("~"),
+                           machines=_machines(ctx))
     msgs = [{"role": "system", "content": system + ("\n" + hint if hint else "")},
             *(history or []), {"role": "user", "content": task}]
     steps, schemas = [], T.schemas()
@@ -93,6 +111,15 @@ def run(task, ctx, llm, budget, history=None, hint=""):
             elif ran:
                 fails = 0
             msgs.append(llm.tool_msg(c, res))
+
+
+def _machines(ctx) -> str:
+    """Talimatta yalnız bağlı makineler geçer: bağlı olmayanı model hiç denemesin, kullanıcıya da söylemesin."""
+    other = [n for n, a in (ctx.agents or {}).items() if n != "mac" and getattr(a, "configured", False)]
+    if not other:
+        return "Her işi bu Mac'te yap (shell machine=mac). Başka bilgisayar bağlı değil; bundan hiç söz etme."
+    return ("Makineler: mac (ana; varsayılan), " + ", ".join(f"{n} (shell machine={n})" for n in other) +
+            ". Kullanıcı başka makine söylemedikçe Mac'te çalış.")
 
 
 def _compact(msgs, limit):

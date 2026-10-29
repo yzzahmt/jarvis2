@@ -16,8 +16,8 @@ budget:
   max_auto_fixes: 2          # aynı hata için
   max_task_seconds: 900
   max_context_chars: 20000
-  max_cloud_calls_per_day: 300   # ücretsiz Gemini'yi az kullan: günde en çok bu kadar istek, sonra yalnız yerel
-  max_cloud_calls_per_task: 40  # yalnızca ücretsiz katmanlar (Claude kullanılmaz); 0 = bulut kapalı
+  max_cloud_calls_per_day: 600   # 9+ ücretsiz kaynak var; dolunca yalnız yerel
+  max_cloud_calls_per_task: 120  # uygulama içi uzun işler (CapCut, Unity) çok adım; yalnızca ücretsiz katmanlar (Claude kullanılmaz); 0 = bulut kapalı
   subagents: false
   dedupe_hours: 24
 
@@ -54,8 +54,8 @@ coder:                    # kodlama ajanı sırası (Claude yok)
   timeout_s: 900
 
 agent:                    # genel ajan (sabit komutlara uymayan istekler)
-  max_turns: 25
-  max_task_seconds: 900
+  max_turns: 80            # uygulama içinde uzun işler (CapCut kurgusu, Unity) çok adım sürer
+  max_task_seconds: 2400
   skills: true            # başarılı görevlerin adımlarını beceri olarak sakla
   macros: config/macros.yaml
 

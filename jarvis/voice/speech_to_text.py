@@ -160,6 +160,7 @@ class STT:
                 "contents": [{"parts": [{"inline_data": {
                     "mime_type": "audio/wav", "data": base64.b64encode(wav_bytes(audio)).decode()}}]}],
                 "generationConfig": {"temperature": 0, "thinkingConfig": {"thinkingLevel": "minimal"}}}
+        tmo = 10 + len(audio) / 16000 / 4  # uzun konuşma (1-2 dk) daha uzun sürer; 10 sn'de kesilip boşa gidiyordu
         for model in self.cloud_models:    # her model ayrı kota; her birinde iki anahtar
             for i, key in enumerate(self._keys()):
                 name = f"{model}#{i + 1}"
@@ -167,7 +168,7 @@ class STT:
                     continue
                 self.used()
                 try:
-                    r = httpx.post(GEMINI.format(model), params={"key": key}, timeout=10, json=body)
+                    r = httpx.post(GEMINI.format(model), params={"key": key}, timeout=tmo, json=body)
                     if r.status_code != 200:
                         self._cool(name, r.status_code)
                         continue
@@ -184,7 +185,7 @@ class STT:
             return None
         self.used("groq-stt")
         try:
-            r = httpx.post(GROQ, headers={"Authorization": f"Bearer {key}"}, timeout=10,
+            r = httpx.post(GROQ, headers={"Authorization": f"Bearer {key}"}, timeout=10 + len(audio) / 64000,
                            files={"file": ("ses.wav", wav_bytes(audio), "audio/wav")},
                            data={"model": "whisper-large-v3-turbo", "language": "tr", "temperature": "0",
                                  "prompt": self.hint})
@@ -257,20 +258,21 @@ class STT:
             t = src(audio)
             if t is not None:
                 break
-        th.join(4)
+        th.join(1.5 if t else 4)           # bulut cevap verdiyse Mac'i uzun bekleme (yavaşlık)
         mac = check.get("t")
         if t is None:
             t = mac if mac is not None else self._whisper(audio)
-        elif mac is not None and t and (mac or self.apple_ok) and not agree(t, mac):
-            # Mac boş döndüyse yalnız çalıştığı kanıtlanmışsa veto eder (00:04'te uygulama içinde hep boş dönüp
-            # gerçek sözleri atıyordu)
+        elif mac and t and not agree(t, mac):
+            # Yalnız Mac BİR ŞEY duyup tamamen farklıysa veto (uzaktaki TV/konuşma). Mac boş döndüyse veto yok:
+            # 29.10'da uygulama içinde boş dönüp "Naber, nasılsın?" gibi gerçek sözleri atıyordu. Uydurmaya karşı
+            # asıl koruma Silero VAD (speechy).
             self.rejected = f"{t!r} (Mac duydu: {mac!r})"
             return ""
         t = fix_stt(t)
         return re.sub(r"^\s*(hey|hay|hi)?[ ,]*jarvis[.,!? ]*", "", t, flags=re.I).strip()   # uyandırma sözü komut değil
 
 
-def record_utterance(frames, rate=16000, start_timeout=6.0, silence=1.2, max_len=20.0, thresh=None, stats=None,
+def record_utterance(frames, rate=16000, start_timeout=6.0, silence=1.0, max_len=120.0, thresh=None, stats=None,
                      preroll=()):
     """frames: int16 çerçeve üreteci. Konuşma başlayıp sessizlikle bitince sesi döndürür; yoksa None.
     preroll: söze girilen anın son karelerİ (konuşmanın başı kaybolmasın) — varsa konuşma başlamış sayılır.

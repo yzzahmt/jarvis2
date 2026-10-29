@@ -131,7 +131,7 @@ class OpenAICompat:
         env = cfg.get("api_key_env")
         self.key = os.environ.get(env, "") if env else "yerel"
         self.is_cloud = not self.base.startswith(("http://127.0.0.1", "http://localhost"))
-        self.timeout = cfg.get("timeout_s", 60)
+        self.timeout = cfg.get("timeout_s", 25)   # takılan sağlayıcıda 60 sn beklemesin, sıradakine geçsin
         self.extra = cfg.get("extra") or {}
         self.sees = bool(cfg.get("vision"))
         self.last_model, self.last_tokens = self.model, None

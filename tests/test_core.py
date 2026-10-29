@@ -71,9 +71,21 @@ def test_disallowed_app(make):
 
 
 def test_offline_machine(make):
-    j = make(agents={"mac": FakeAgent(), "zorin": FakeAgent(online=False), "mint": FakeAgent()})
-    assert "çevrimdışı" in j.handle("zorin tarih projesinin testlerini çalıştır")
-    assert j.tm.list(1)[0]["status"] == FAILED
+    # 025: adı söylenen makine çevrimdışıysa "bağlantı yok" deyip bırakmaz, Mac'te yapmayı sorar
+    zorin = FakeAgent(online=False)
+    j = make(agents={"mac": FakeAgent(), "zorin": zorin, "mint": FakeAgent()})
+    r = j.handle("zorin tarih projesinin testlerini çalıştır")
+    assert "çevrimdışı" in r and "Mac'te" in r and r.endswith("?")
+    assert j.handle("hayır") == "Tamam, yapmıyorum." and zorin.calls == []
+
+
+def test_unconfigured_machine_never_mentioned(make):
+    # 025: kullanıcı makine söylemediyse bağlı olmayan Zorin'den hiç söz edilmez, iş Mac'e gider
+    class Off(FakeAgent):
+        configured = False
+    j = make(agents={"mac": FakeAgent(), "zorin": Off(), "mint": Off()})
+    r = j.handle("login fonksiyonundaki hatayı düzelt")
+    assert "Zorin" not in r and "bağlantı" not in r
 
 
 def test_sensitive_needs_confirm(make):

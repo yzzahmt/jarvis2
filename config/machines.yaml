@@ -2,6 +2,7 @@
 mac:
   role: controller
   local: true
+  project_dir: /Volumes/HDD/Projeler/Projeler   # Mac projeleri sabit diskte
 zorin:            # Zorin OS (Ubuntu tabanlı): kodlama/test
   role: technical
   aliases: [zorin, zorin os, zorinos, sorin, teknik]

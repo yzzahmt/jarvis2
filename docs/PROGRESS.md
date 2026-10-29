@@ -126,3 +126,8 @@ Groq'a 2 model daha, 6 ücretsiz sağlayıcı anahtar bekliyor, scripts/beyin_ko
 
 ## 024 (29.10.2026)
 OpenRouter: nemotron-3-ultra (araç çağrısı ✓) + gemma-4-31b (sık meşgul). Ayrıntı: yenilikler/024.
+
+## 025 (29.10.2026)
+Bağlı olmayan Zorin/Mint'ten söz edilmez (iş Mac'te; adı söylendiyse sorar), Mac ikinci kulağı boşken veto yok, 120 sn
+kayıt, yankı ayıklama, süre günlüğü; drag_on/find_on_screen/pointer/unity araçları, uygulama kullanma talimatı, sınırlar
+yükseltildi. 61 test. Ayrıntı: yenilikler/025.

@@ -13,7 +13,7 @@ from .agent.skills import MacroFailed, Skills
 from .agents.base import build_agents, qpath
 from .controller.budget import Budget, BudgetExceeded
 from .controller.permissions import Permissions
-from .controller.router import Intent, route, route_llm
+from .controller.router import Intent, detect_machine, route, route_llm
 from .controller.task_manager import CONFIRM, DONE, FAILED, PENDING, RUNNING, TaskManager
 from .brains import Brains
 from .llm import LLMError, Ollama
@@ -57,8 +57,10 @@ class Jarvis:
         self.ask = lambda q: ""            # görev sırasında kullanıcıya soru; yoksa onaylar reddedilir
         self.on_progress = None
         self.on_event = None               # arayüz: görev başladı/bitti olayları
+        self.pointer = None                # kullanıcı konuşmayı bitirdiğinde fare imlecinin yeri
         self.awake = False
         self.pending: tuple[str, Intent] | None = None
+        self.fallback: tuple[str, Intent] | None = None   # "Mac'te yapayım mı?" sorusu bekleyen istek
         self.lock = threading.Lock()
         self.recovered = self.tm.recover()
 
@@ -72,6 +74,13 @@ class Jarvis:
             return self._handle(text, t, say)
 
     def _handle(self, text, t, say):
+        if self.fallback:
+            orig, intent = self.fallback
+            self.fallback = None
+            if re.match(r"^(evet|tamam|olur|yap|mac'?te)\b", t):
+                return self._task(orig, self._on_mac(orig, intent), say)
+            if re.match(r"^(hayır|iptal|vazgeç|yapma|gerek yok)\b", t):
+                return "Tamam, yapmıyorum."
         if self.pending:
             tid, intent = self.pending
             if re.match(r"^(evet|onaylıyorum|onayla|tamam|olur|yap)\b", t):
@@ -104,13 +113,30 @@ class Jarvis:
             intent.args["task"] = text
         if intent.name in INSTANT:
             return getattr(self, "do_" + intent.name)(intent)
+        agent = self.agents.get(intent.machine)
+        if intent.machine != "mac" and (agent is None or not agent.configured or not agent.online()):
+            nm = NAMES.get(intent.machine, intent.machine)
+            if detect_machine(norm(text), self.machines, "") != intent.machine:
+                return self._task(text, self._on_mac(text, intent), say)   # kullanıcı makine söylemedi: sessizce Mac
+            self.fallback = (text, intent)
+            why = "henüz bağlı değil" if agent is None or not agent.configured else "şu an çevrimdışı, ulaşamıyorum"
+            return f"{nm} {why}. Bu işi Mac'te yapmamı ister misin?"
+        if intent.name == "code" and intent.machine == "mac" and not self.coder.available(agent):
+            intent = self._on_mac(text, intent)
         return self._task(text, intent, say)
+
+    def _on_mac(self, text, intent: Intent) -> Intent:
+        """Bağlı olmayan makineye giden iş Mac'te yapılır. Mac'te kodlama ajanı (gemini/aider) yok: kod ve test
+        işleri genel ajana gider (shell, dosya, uygulama araçlarıyla kendisi yapar)."""
+        if intent.name in ("code", "run_tests"):
+            return Intent("agent", {"task": text}, "mac", intent.source)
+        return Intent(intent.name, intent.args, "mac", intent.source)
 
     def _task(self, text, intent: Intent, say):
         agent = self.agents.get(intent.machine)
         nm = NAMES.get(intent.machine, intent.machine)
         if agent is None or not agent.configured:
-            return f"{nm} için bağlantı ayarı yok. config/machines.yaml dosyasını doldurmalıyız."
+            return self._task(text, self._on_mac(text, intent), say)
         if (busy := self.tm.busy(intent.machine)):
             return f"{nm} bilgisayarında zaten bir görev çalışıyor ({busy}). 'Dur' diyerek durdurabilirsin."
         cats = [] if intent.name in TOOL_GATED else self.perms.needs_confirm(intent.name, text)
@@ -368,7 +394,8 @@ class Jarvis:
                 self.on_progress(name, args)
         return agent_loop.Ctx(db=self.db, agents=self.agents, machines=self.machines, coder=self.coder,
                               budget=budget, browser=self._web, vision=self._vision,
-                              ask=self.ask, progress=progress, stop=self.tm.stop_flags.get(tid))
+                              ask=self.ask, progress=progress, stop=self.tm.stop_flags.get(tid),
+                              extra={"pointer": self.pointer})
 
     def _vision(self, question, image):
         """Ekranı görme: bulutta görebilen beyin (Gemini) varsa o, yoksa yerel görsel model."""

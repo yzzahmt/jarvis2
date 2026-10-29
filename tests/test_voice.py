@@ -110,9 +110,11 @@ def test_second_ear_rejects_invented_text(monkeypatch):
     st.rejected, st.apple_ok = "", True
     st._groq = lambda a: None
     st._gemini = lambda a: "screenshot'ı kaydet."
-    for mac in ("", "evet evet tamam"):
-        st._apple = lambda a, m=mac: m
-        assert st.transcribe(np.ones(16000, np.int16)) == "" and st.rejected
+    st._apple = lambda a: "evet evet tamam"
+    assert st.transcribe(np.ones(16000, np.int16)) == "" and st.rejected
+    # 025: Mac boş döndüyse veto yok (uygulamada boş dönüp "Naber, nasılsın?" gibi gerçek sözleri atıyordu)
+    st._apple = lambda a: ""
+    assert st.transcribe(np.ones(16000, np.int16)) == "screenshot'ı kaydet."
     st._gemini = lambda a: "ChatGPT API key'ini kopyala ve .env dosyasına yapıştır."
     st._apple = lambda a: "Çetin Apikini kopyala veen dosyasına yapıştır"     # gerçek Mac çıktısı (İngilizce bozuk)
     assert st.transcribe(np.ones(16000, np.int16)).startswith("ChatGPT")

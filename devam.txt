@@ -1,5 +1,5 @@
 JARVIS — DEVAM NOTU (yeni bir yapay zekâ oturumu buradan başlasın)
-Son güncelleme: 29.10.2026 (024)
+Son güncelleme: 29.10.2026 (025)
 ==========================================================================
 
 YENİ OTURUMA İLK MESAJ OLARAK ŞUNU YAZ:
@@ -147,7 +147,13 @@ data/logs/crash.log'a bak (faulthandler). Uygulama simgesi paketin içinde (appl
 Beyinler (23-24): Gemini 4 kaynak + Groq 3 model + OpenRouter 2 model (nemotron-3-ultra, gemma-4-31b) çalışıyor;
 cerebras/mistral/github/sambanova/nvidia anahtar bekliyor (.env.example'da adresleri). Kontrol: source scripts/env.sh && python scripts/beyin_kontrol.py
 Ses: Emel (tek doğal Türkçe Edge sesi; diğerleri yabancı aksanlı, Ahmet çalışmıyor).
-Testler: 60. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
+Zorin yok (25): bağlı olmayan makineden söz edilmez, iş Mac'te; kullanıcı adını söylediyse "Mac'te yapayım mı?" sorar.
+Ses (25): Mac ikinci kulağı boş dönünce veto YOK; kayıt 120 sn; söze girince baştaki yankı ayıklanır; günlükte
+"süre: anlama X sn, cevap Y sn". Uygulama (25): drag_on, find_on_screen, pointer (imleç = "buraya"), unity aracı;
+ajan 80 tur / 2400 sn; bulut görev başı 120, günlük 600.
+Sıradaki: kullanıcı gerçek denesin (Unity araba, CapCut'ta resmi imlecin yerine koyma); günlükteki süre satırlarına göre
+yavaşlık nerede bak.
+Testler: 61. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
 
 Bilinen sorunlar:
 - CAPTCHA ve SMS kodunu Jarvis geçemez; kullanıcıya sorar.
