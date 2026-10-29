@@ -606,6 +606,13 @@ def t_recall(ctx, query):
     return clip("\n".join(hits[:20]) or "kayıt yok")
 
 
+@tool("tell_user", "Görev sürerken kullanıcıya kısa sesli bilgi verir (plan, hangi aşamadasın). Cevap beklemez.",
+      info=False, text=S("tek kısa cümle"))
+def t_tell(ctx, text):
+    (ctx.extra or {}).get("say", lambda m: None)(text)
+    return "söylendi"
+
+
 @tool("ask_user", "Kullanıcıya kısa bir açıklama sorusu sorar ve cevabı döndürür.", question=S("soru"))
 def t_ask(ctx, question):
     return ctx.ask(question) or "(cevap yok)"

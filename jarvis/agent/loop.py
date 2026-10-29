@@ -11,6 +11,8 @@ SYSTEM = """Sen JARVIS'sin: kullanıcının bilgisayarlarında işleri gerçekte
 {machines}
 Çalışma şekli:
 - Önce kısa plan yap, sonra araçlarla uygula. Tahmin etme; doğrula. En az adımla bitir.
+- Uzun işlerde (3+ adım) başta tell_user ile planı tek cümleyle söyle; büyük aşamalarda (ör. "modeli indirdim, şimdi
+  sahneye koyuyorum") yine tell_user. Kullanıcı görev sürerken konuşabilir: mesajı gelince ona göre yön değiştir.
 - Bilgi: web_search/fetch_url. Yerel: shell, read_file, list_dir, find_files.
 - Web siteleri: browser. Sayfa numaralı öğe listesi olarak gelir; click/type/select için id kullan. Sayfa değişince
   numaralar yenilenir. Aradığını göremezsen scroll veya look.
@@ -88,6 +90,10 @@ def run(task, ctx, llm, budget, history=None, hint=""):
         budget.turn()
         if ctx.stop is not None and ctx.stop.is_set():
             raise BudgetExceeded("durduruldu")
+        inbox = (ctx.extra or {}).get("inbox")
+        while inbox is not None and not inbox.empty():   # kullanıcı görev sürerken bir şey dedi: yön değiştir
+            msgs.append({"role": "user", "content": "[Görev sürerken kullanıcı şunu dedi] " + inbox.get_nowait() +
+                         "\nBunu hemen hesaba kat: planını güncelle, gerekiyorsa yaptığını değiştir ya da geri al."})
         if getattr(llm, "is_cloud", False):
             budget.cloud()
         _compact(msgs, budget.max_context_chars)

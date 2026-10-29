@@ -330,8 +330,8 @@ class App:
         threading.Thread(target=self._run, args=(text,), daemon=True).start()
 
     def _run(self, text):
-        if self.j.lock.locked() and text != "dur":
-            self.message("jarvis", "Şu an bir görev çalışıyor. Durdurmak için 'dur' yaz ya da kare düğmeye bas.")
+        if self.j.busy():                         # görev sürerken yazılan: durdur ya da göreve ilet
+            self.message("jarvis-interim", self.j.tell(text))
             return
         self.state("thinking")
         reply = self.j.handle(text, say=lambda m: self.message("jarvis-interim", m), ask=self.ask)

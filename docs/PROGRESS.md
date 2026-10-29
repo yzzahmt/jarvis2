@@ -134,3 +134,6 @@ yükseltildi. 61 test. Ayrıntı: yenilikler/025.
 
 ## 026 (29.10.2026)
 Aşama 1: Erişilebilirlik ağacıyla ekranı okuma (ui_read/ui_click/ui_type/ui_menu), görsel model yedek. Ayrıntı: yenilikler/026.
+
+## 027 (29.10.2026)
+Aşama 2: görev sürerken dinleme; 'dur' durdurur, diğer sözler çalışan göreve iletilir; tell_user ile plan/durum. Ayrıntı: yenilikler/027.

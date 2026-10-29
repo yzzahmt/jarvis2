@@ -1,6 +1,7 @@
 """JARVIS çekirdeği: metin komutu -> niyet -> görev -> sonuç. Ses ve API bunu kullanır."""
 import datetime as dt
 import json
+import queue
 import re
 import threading
 from collections import deque
@@ -58,6 +59,7 @@ class Jarvis:
         self.on_progress = None
         self.on_event = None               # arayüz: görev başladı/bitti olayları
         self.pointer = None                # kullanıcı konuşmayı bitirdiğinde fare imlecinin yeri
+        self.inbox: queue.Queue = queue.Queue()   # görev sürerken kullanıcının eklediği sözler (ajan her turda okur)
         self.awake = False
         self.pending: tuple[str, Intent] | None = None
         self.fallback: tuple[str, Intent] | None = None   # "Mac'te yapayım mı?" sorusu bekleyen istek
@@ -72,6 +74,17 @@ class Jarvis:
         with self.lock:
             self.ask = ask or (lambda q: "")
             return self._handle(text, t, say)
+
+    def busy(self) -> bool:
+        return self.lock.locked()
+
+    def tell(self, text: str) -> str:
+        """Görev sürerken gelen söz: 'dur' görevi durdurur; başka her şey çalışan göreve iletilir (yön değiştirir)."""
+        t = norm(text)
+        if re.fullmatch(r"(jarvis )?(dur|durdur|iptal|iptal et|vazgeç|görevi durdur|bırak)", t):
+            return self.do_stop(None)
+        self.inbox.put(text)
+        return "Tamam, bunu da hesaba katıyorum."
 
     def _handle(self, text, t, say):
         if self.fallback:
@@ -388,14 +401,14 @@ class Jarvis:
             self.web = BrowserSession(config.path("data/browser-profile"))
         return self.web
 
-    def _ctx(self, tid, budget):
+    def _ctx(self, tid, budget, say=None):
         def progress(name, args):
             if self.on_progress:
                 self.on_progress(name, args)
         return agent_loop.Ctx(db=self.db, agents=self.agents, machines=self.machines, coder=self.coder,
                               budget=budget, browser=self._web, vision=self._vision,
                               ask=self.ask, progress=progress, stop=self.tm.stop_flags.get(tid),
-                              extra={"pointer": self.pointer})
+                              extra={"pointer": self.pointer, "inbox": self.inbox, "say": say or (lambda m: None)})
 
     def _vision(self, question, image):
         """Ekranı görme: bulutta görebilen beyin (Gemini) varsa o, yoksa yerel görsel model."""
@@ -421,7 +434,9 @@ class Jarvis:
         llm = self._agent_llm()
         self.tm.update(tid, model=getattr(llm, "agent_model", None) or getattr(llm, "model", "?"))
         use_skills = self.agent_cfg.get("skills", True)
-        answer, steps = agent_loop.run(task, self._ctx(tid, budget), llm, budget, history=list(self.history)[-4:],
+        while not self.inbox.empty():      # önceki görevden kalan söz yeni göreve karışmasın
+            self.inbox.get_nowait()
+        answer, steps = agent_loop.run(task, self._ctx(tid, budget, say), llm, budget, history=list(self.history)[-4:],
                                        hint=self.skills.hint(task) if use_skills else "")
         self.history.extend([{"role": "user", "content": task}, {"role": "assistant", "content": answer}])
         self.tm.update(tid, tools=json.dumps([s["tool"] for s in steps]))

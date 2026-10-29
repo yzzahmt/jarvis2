@@ -100,6 +100,7 @@ class VoiceLoop:
         self.tts = TTS.from_settings(v, config.path("data"))
         self.tts.warm(WARM)
         self.wake_evt = threading.Event()
+        self.answering = threading.Event()   # görev bir soru sordu, cevabı listen_answer dinliyor
         self.preroll: list = []         # söze girilince kaydedilen ilk kareler
         self.mic = Mic()
         self.ww = self.clap = None
@@ -231,6 +232,14 @@ class VoiceLoop:
     def listen_answer(self, question):
         """Soruyu söyle, tek cümlelik cevabı dinle (cevap yoksa "" -> onay verilmemiş sayılır)."""
         from .speech_to_text import record_utterance
+        self.answering.set()                 # görev sırasındaki dinleyici mikrofonu bıraksın
+        try:
+            return self._listen_answer(question)
+        finally:
+            self.answering.clear()
+
+    def _listen_answer(self, question):
+        from .speech_to_text import record_utterance
         self.say(question)
         for _ in range(2):                   # kendi sesini cevap sanıp isteği iptal etmesin
             self.ui.state("listening")
@@ -328,12 +337,44 @@ class VoiceLoop:
             self.ui.message("user", text)
             idle_until = time.time() + self.v.get("idle_sleep_s", 60)
             t0 = time.time()
-            reply = self.j.handle(text, say=self.say, ask=self.ask)
+            reply = self.run_task(text)
             status(f"süre: anlama {t_stt:.1f} sn ({self.stt.last}), cevap {time.time() - t0:.1f} sn")
             self.ui.message("jarvis", reply)
             self.say(reply)
             if not self.j.awake:
                 return
+
+    def run_task(self, text):
+        """Komutu arka planda çalıştırır; bu sırada dinlemeye devam eder: 'dur' görevi durdurur, başka söz çalışan
+        göreve iletilir (ör. "onu kırmızı yap"). Jarvis konuşurken ya da görev soru sorarken dinleyici bekler."""
+        from .speech_to_text import record_utterance
+        box: list = []
+        th = threading.Thread(target=lambda: box.append(self.j.handle(text, say=self.say, ask=self.ask)), daemon=True)
+        th.start()
+        free = lambda: th.is_alive() and not self.tts.speaking.is_set() and not self.answering.is_set()  # noqa: E731
+
+        def frames():
+            for f in self.mic.frames(timeout=0.2):
+                yield f if free() else None
+
+        while th.is_alive():
+            if not free():
+                time.sleep(0.1)
+                continue
+            self.ui.state("thinking")
+            audio = record_utterance(frames(), RATE, start_timeout=30, preroll=self._take_preroll())
+            if audio is None or not th.is_alive() or self.answering.is_set():
+                continue
+            said = self.strip_self(self.stt.transcribe(audio))
+            if not said or len(norm(said)) < 2 or self.heard_self(said):
+                continue
+            status(f"sen (görev sürerken)> {said}")
+            self.ui.message("user", said)
+            ack = self.j.tell(said)
+            self.ui.message("jarvis-interim", ack)
+            self.say(ack, interruptible=False)
+        th.join()
+        return box[0] if box else "Bir sorun oldu, görev cevap vermedi."
 
     def run(self):
         while True:

@@ -198,3 +198,29 @@ def test_two_failures_tell_agent_to_ask(db):
     last_tool = [m for m in llm.seen[-1] if m["role"] == "tool"]
     assert "SİSTEM" not in last_tool[0]["content"] and "ask_user" in last_tool[1]["content"]
     assert "Kafana göre iş yapma" in loop.SYSTEM and "yaptım deme" in loop.SYSTEM
+
+
+def test_user_can_redirect_running_task(db):
+    # 027: görev sürerken söylenen söz bir sonraki turda ajana ulaşır; tell_user cevap beklemeden konuşur
+    import queue
+    said, inbox = [], queue.Queue()
+    c = ctx(db, budget=Budget(max_agent_turns=10))
+    c.extra = {"inbox": inbox, "say": said.append}
+    llm = ScriptLLM([("tell_user", {"text": "Önce resmi bulup sonra videoya koyacağım."}),
+                     ("remember", {"key": "renk", "value": "mavi"})])
+    real = llm.chat_tools
+
+    def chat_tools(messages, tools, **k):
+        if len(llm.seen) == 1:
+            inbox.put("mavi değil kırmızı olsun")
+        return real(messages, tools, **k)
+    llm.chat_tools = chat_tools
+    loop.run("arka planı mavi yap", c, llm, Budget(max_agent_turns=10))
+    assert said == ["Önce resmi bulup sonra videoya koyacağım."]
+    assert any("kırmızı olsun" in str(m.get("content")) for m in llm.seen[-1])
+
+
+def test_tell_stops_or_forwards(make):
+    j = make()
+    assert "hesaba" in j.tell("onu kırmızı yap") and j.inbox.get_nowait() == "onu kırmızı yap"
+    assert j.tell("dur") in ("Görevi durdurdum.", "Çalışan bir görev yok.") and j.inbox.empty()
