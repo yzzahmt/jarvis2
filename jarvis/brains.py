@@ -57,7 +57,8 @@ class Brains:
     def _cool(self, b, e: LLMError):
         sec = COOL.get(e.status, 120) if e.status else 60      # zaman aşımı / ağ hatası: kısa bekleme
         if e.retry_after:
-            sec = max(sec or 0, e.retry_after)
+            # dakikalık sınır (gemini-3.5-flash: 5/dk) kısa retryDelay verir: yalnız o kadar bekle, 10 dk değil
+            sec = e.retry_after if e.status == 429 and e.retry_after <= 120 else max(sec or 0, e.retry_after)
         with self.lock:
             self.until[b.name] = float("inf") if sec is None else time.time() + sec
 
@@ -101,7 +102,8 @@ class Brains:
         return any(b.sees for b in self.ready())
 
     def vision(self, question, image_path):
-        return self._try("vision", question, image_path, only=lambda b: b.sees, strong=True)
+        # görme hızlı modelde (29.10 ölçüm: lite ile aynı kutu, 3 sn); güçlü kota (5/dk) akıl yürütmeye kalsın
+        return self._try("vision", question, image_path, only=lambda b: b.sees)
 
     # mesaj biçimi tüm sağlayıcılarda aynı
     def assistant_msg(self, rep):

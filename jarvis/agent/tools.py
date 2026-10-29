@@ -143,7 +143,21 @@ def t_find(ctx, name, folder=""):
 @tool("open_app", "Mac'te uygulama açar.", info=False, app=S("uygulama adı (ör. Safari, Notes, Music)"))
 def t_open_app(ctx, app):
     r = subprocess.run(["open", "-a", app], capture_output=True, text=True)
-    return "açıldı" if r.returncode == 0 else f"açılamadı: {r.stderr.strip()}"
+    if r.returncode != 0:
+        return f"açılamadı: {r.stderr.strip()}"
+    try:                                       # penceresi gelene kadar bekle (en çok 15 sn): sonraki adım boşa okumasın
+        from ..automation import ax
+        end = time.time() + 15
+        while time.time() < end:
+            found = ax.find_app(app)
+            if found and ax._get(ax._ax().AXUIElementCreateApplication(found[1]), "AXWindows"):
+                ax.activate(found[1])
+                time.sleep(0.8)
+                return f"açıldı ve öne geldi ({found[0]})"
+            time.sleep(0.5)
+    except Exception:
+        pass
+    return "açıldı (penceresi henüz görünmüyor olabilir)"
 
 
 @tool("open_url", "Varsayılan tarayıcıda adres açar (Mac).", info=False, url=S("http(s) adresi"))

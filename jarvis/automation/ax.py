@@ -98,9 +98,20 @@ def read(app: str = "", query: str = "", limit: int = 120) -> str:
         return f"'{app}' çalışmıyor; önce open_app ile aç."
     name, pid = found
     root = _ax().AXUIElementCreateApplication(pid)
-    win = _get(root, "AXFocusedWindow") or (list(_get(root, "AXWindows") or []) or [None])[0]
-    if win is None:
+    _ax().AXUIElementSetAttributeValue(root, "AXManualAccessibility", True)   # Electron/Chromium ağacı açsın
+    wins = [w for w in [_get(root, "AXFocusedWindow"), *(_get(root, "AXWindows") or [])] if w is not None]
+    if not wins:
         return f"{name}: açık pencere yok."
+    best = ""
+    for win in wins[:4]:                 # odaktaki pencere boşsa (açılış ekranı, araç paneli) diğerleri
+        r = _read_win(name, win, query, limit)
+        if "okunabilir öğe yok" not in r:
+            return r
+        best = best or r
+    return best
+
+
+def _read_win(name, win, query, limit) -> str:
     _cache.clear()
     wf = _frame(win) or (0, 0, 10 ** 5, 10 ** 5)
     inside = lambda f: wf[0] - 2 <= f[0] + f[2] // 2 <= wf[0] + wf[2] and wf[1] - 2 <= f[1] + f[3] // 2 <= wf[1] + wf[3]  # noqa: E731

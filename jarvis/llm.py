@@ -148,8 +148,10 @@ class OpenAICompat:
             raise LLMError(f"{self.name} bağlantı hatası: {e}")
         if r.status_code >= 400:
             ra = r.headers.get("retry-after")
+            m = re.search(r'"retryDelay":\s*"([\d.]+)s"', r.text)        # Gemini süreyi gövdede verir
+            wait = float(ra) if ra and ra.replace(".", "").isdigit() else float(m.group(1)) if m else None
             raise LLMError(f"{self.name} {r.status_code}: {r.text[:120]}", r.status_code,
-                           int(float(ra)) if ra and ra.replace(".", "").isdigit() else None)
+                           int(wait) + 1 if wait is not None else None)
         d = r.json()
         self.last_tokens = (d.get("usage") or {}).get("total_tokens")
         try:

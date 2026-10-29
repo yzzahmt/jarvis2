@@ -1,5 +1,5 @@
 JARVIS — DEVAM NOTU (yeni bir yapay zekâ oturumu buradan başlasın)
-Son güncelleme: 29.10.2026 (025)
+Son güncelleme: 29.10.2026 (031)
 ==========================================================================
 
 YENİ OTURUMA İLK MESAJ OLARAK ŞUNU YAZ:
@@ -151,9 +151,23 @@ Zorin yok (25): bağlı olmayan makineden söz edilmez, iş Mac'te; kullanıcı 
 Ses (25): Mac ikinci kulağı boş dönünce veto YOK; kayıt 120 sn; söze girince baştaki yankı ayıklanır; günlükte
 "süre: anlama X sn, cevap Y sn". Uygulama (25): drag_on, find_on_screen, pointer (imleç = "buraya"), unity aracı;
 ajan 80 tur / 2400 sn; bulut görev başı 120, günlük 600.
-Sıradaki: kullanıcı gerçek denesin (Unity araba, CapCut'ta resmi imlecin yerine koyma); günlükteki süre satırlarına göre
-yavaşlık nerede bak.
-Testler: 61. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
+Büyük yükseltme (26-31, kullanıcı "her şeyi yapabilsin" dedi, 5 aşama):
+ 1 Ekranı OKUMA: jarvis/automation/ax.py (Erişilebilirlik) → ui_read/ui_click/ui_type/ui_menu; görsel araçlar yedek.
+   CapCut (Chromium) ağacı zayıf → görsel yedek çalışıyor.
+ 2 Görev sürerken konuşma: VoiceLoop.run_task arka planda; "dur" durdurur, diğer söz Jarvis.tell → inbox → ajan;
+   tell_user ile plan/durum. Arayüzde yazılan da göreve gider.
+ 3 Gösterip öğretme: "sana X'i göstereyim" → kayıt (jarvis/agent/teach.py, ayrı süreç) → "tamam bitti" → DB demo;
+   benzer istekte "KULLANICI BİZZAT GÖSTERDİ" adımları ajana.
+ 4 video aracı (ffmpeg, imageio-ffmpeg venv'de), look_image, pointer(inside) oranı, blender aracı (bpy, render).
+   BLENDER KURULMADI: DMG data/apps/indir/blender.dmg'de; hdiutil'e otomatik ortamda izin yok → kullanıcı komutu
+   (aşağıda). Kurulunca: data/apps/Blender.app.
+ 5 Güçlü beyin: strong katmanı (gemini-3.5-flash ×2, dakikada 5/anahtar) ajanda önce; sohbet ve görme lite.
+Blender kurulum komutu (kullanıcı çalıştırır):
+  hdiutil attach -nobrowse /Volumes/HDD/Projeler/Projeler/Jarvis/data/apps/indir/blender.dmg && cp -R /Volumes/Blender/Blender.app /Volumes/HDD/Projeler/Projeler/Jarvis/data/apps/ && hdiutil detach /Volumes/Blender && rm -r /Volumes/HDD/Projeler/Projeler/Jarvis/data/apps/indir
+İzinler (JARVIS.app): Erişilebilirlik, Ekran Kaydı, Mikrofon, Giriş İzleme (gösterip öğretmede klavye).
+Sıradaki: kullanıcı sesli dener (Unity/Blender araba, CapCut'ta resmi imlecin yerine koyma, "sana göstereyim");
+günlükteki "süre:" satırlarına bak; Blender kurulunca blender aracını gerçek araba modeliyle dene.
+Testler: 70. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
 
 Bilinen sorunlar:
 - CAPTCHA ve SMS kodunu Jarvis geçemez; kullanıcıya sorar.

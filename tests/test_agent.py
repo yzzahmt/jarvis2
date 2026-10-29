@@ -273,3 +273,16 @@ def test_strong_brains_first_for_agent_last_for_chat(monkeypatch):
     b.chat_tools([], [])
     b.chat([])
     assert used == ["guclu", "lite"]
+
+
+def test_per_minute_quota_short_cooldown(monkeypatch):
+    # 030: gemini-3.5-flash dakikada 5 istek; 429 + retryDelay 38s → 10 dk değil ~39 sn bekler
+    import time
+    from jarvis.brains import Brains
+    from jarvis.llm import LLMError
+    monkeypatch.setenv("K", "x")
+    b = Brains([{"name": "g", "base_url": "https://a", "model": "m", "api_key_env": "K"}])
+    b._cool(b.all[0], LLMError("429", 429, 39))
+    assert 30 < b.until["g"] - time.time() < 45
+    b._cool(b.all[0], LLMError("429", 429, None))
+    assert b.until["g"] - time.time() > 500

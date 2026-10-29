@@ -146,3 +146,6 @@ Aşama 3: gösterip öğretme (ayrı süreçte fare/klavye + Erişilebilirlik ad
 
 ## 030 (29.10.2026)
 Aşama 5: güçlü beyin katmanı (gemini-3.5-flash ×2 anahtar ajan/görmede önce; sohbet lite'ta). Ayrıntı: yenilikler/030.
+
+## 031 (29.10.2026)
+CapCut uçtan uca deneme 43 → 13 sn: open_app pencereyi bekler, ui_read diğer pencereler + AXManualAccessibility, sessiz bitişte özet, 429 retryDelay kadar bekleme, görme hızlı modelde. Ayrıntı: yenilikler/031.

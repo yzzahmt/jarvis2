@@ -107,6 +107,13 @@ def run(task, ctx, llm, budget, history=None, hint=""):
         rep = llm.chat_tools(msgs, schemas)
         budget.add_tokens(rep.tokens)
         if not rep.calls:
+            if not (rep.content or "").strip() and steps:     # sessizce bitirdi: ne yaptığını söylesin
+                msgs.append({"role": "user", "content": "Şimdi kullanıcıya sonucu 1-3 doğal cümleyle söyle: ne yaptın, "
+                             "ne buldun, bitmediyse nerede kaldın. Araç çağırma."})
+                try:
+                    rep = llm.chat_tools(msgs, schemas)
+                except Exception:
+                    pass
             return (rep.content or "Tamam.").strip(), steps
         msgs.append(llm.assistant_msg(rep))
         for c in rep.calls:
