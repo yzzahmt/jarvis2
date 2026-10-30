@@ -154,4 +154,4 @@ CapCut uçtan uca deneme 43 → 13 sn: open_app pencereyi bekler, ui_read diğer
 Blender 5.2.3 HDD'ye kuruldu (7-Zip ile); blender aracı ve Blender → FBX → Unity (create/import/run) zinciri gerçek denemede çalıştı. Ayrıntı: yenilikler/032.
 
 ## 033 (30.10.2026)
-Blender aracı HDD kopyası yoksa /Applications/Blender.app kullanır (kullanıcı kendisi de kurdu). Ayrıntı: yenilikler/033.
+Blender yalnız HDD'den (data/apps), ayarları data/blender-user'da; /Applications'taki kullanıcının kendi kopyası. Ayrıntı: yenilikler/033.

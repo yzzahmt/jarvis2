@@ -159,7 +159,8 @@ Büyük yükseltme (26-31, kullanıcı "her şeyi yapabilsin" dedi, 5 aşama):
  3 Gösterip öğretme: "sana X'i göstereyim" → kayıt (jarvis/agent/teach.py, ayrı süreç) → "tamam bitti" → DB demo;
    benzer istekte "KULLANICI BİZZAT GÖSTERDİ" adımları ajana.
  4 video aracı (ffmpeg, imageio-ffmpeg venv'de), look_image, pointer(inside) oranı, blender aracı (bpy, render).
-   Blender 5.2.3 kurulu: data/apps/Blender.app (yoksa /Applications/Blender.app — kullanıcı da kurdu, 033). Blender → FBX → Unity zinciri denendi, çalışıyor (032).
+   Blender 5.2.3 kurulu: data/apps/Blender.app. Jarvis YALNIZ bunu kullanır; /Applications'taki Blender kullanıcının
+   kendi kopyası, Jarvis dokunmaz. Jarvis'in Blender ayarları data/blender-user'da (033). JARVIS MAC DİSKİNDE YER KAPLAMAZ. Blender → FBX → Unity zinciri denendi, çalışıyor (032).
  5 Güçlü beyin: strong katmanı (gemini-3.5-flash ×2, dakikada 5/anahtar) ajanda önce; sohbet ve görme lite.
 İzinler (JARVIS.app): Erişilebilirlik, Ekran Kaydı, Mikrofon, Giriş İzleme (gösterip öğretmede klavye).
 Sıradaki: kullanıcı sesli dener (Unity/Blender araba, CapCut'ta resmi imlecin yerine koyma, "sana göstereyim");
