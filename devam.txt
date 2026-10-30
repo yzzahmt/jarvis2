@@ -168,6 +168,10 @@ Görünür mod (34): ajan işleri ekranda klavye/fareyle yapar (talimat "GÖRÜN
 Ekran işi başlayınca ana pencere alt çubuğa iner. Mikrofon kapatma düğmesi (ana pencere + çubuk). Arayüz: koyu HUD.
 Ses (35): yankı oranı her konuşmanın ilk 0,8 sn'sinde ölçülür (mikrofon 80'de eski oran kendi sesiyle kesiyordu);
 kırıntı yankı atılır; bitiş sessizliği 1,8 sn (voice.end_silence), "ama/yani…" ile biten cümlede dinlemeye devam.
+Blender (36): eski araba becerisi DB'den silindi. bpy `blender` aracı yalnız "arka planda/hızlıca" denirse
+görünür (loop.BACKGROUND). Kaliteli model: hazır modeller bulunur, 2-3'ü sorulur, seçilen indirilip düzenlenir;
+beğenilmezse görünür sıfırdan modellenir (blokaj→mirror→subsurf→tekerlek/cam→iç mekân→malzeme). Ajan 400 tur / 4500 sn,
+bulutta görev başına 400 çağrı.
 Sıradaki: kullanıcı sesli dener (Unity/Blender araba, CapCut'ta resmi imlecin yerine koyma, "sana göstereyim");
 günlükteki "süre:" satırlarına bak.
 Testler: 73. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).

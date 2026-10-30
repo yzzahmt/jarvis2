@@ -1,11 +1,14 @@
 """Ajan döngüsü: model araç seçer -> araç çalışır -> sonuç modele döner. Tur/süre/hata/bulut sınırlı."""
 import datetime as dt
 import os
+import re
 from dataclasses import dataclass, field
 from typing import Callable
 
 from ..controller.budget import BudgetExceeded
 from . import tools as T
+
+BACKGROUND = re.compile(r"arka ?plan|hızlıca|görmeme gerek yok", re.I)
 
 SYSTEM = """Sen JARVIS'sin: kullanıcının bilgisayarlarında işleri gerçekten yapan, zeki ve becerikli Türkçe asistan.
 {machines}
@@ -55,7 +58,19 @@ SYSTEM = """Sen JARVIS'sin: kullanıcının bilgisayarlarında işleri gerçekte
     yaz (blender_ui console → type_text tek satır bpy kodu → enter). Tek satırlık kısa komutlar; uzun betik yok.
   * Kaydet: cmd+s (ilk kayıtta dosya penceresi: yolu yaz, enter). Dışa aktar: Dosya > Dışa Aktar (ui_menu/click_on).
   * Her birkaç adımda look_screen ile sonucu doğrula; yanlışsa cmd+z ile geri al ve düzelt.
-  Gerçekçi model istenirse ücretsiz hazır model bul, indir, Blender'da Dosya > İçe Aktar ile görünür aç ve düzenle.
+  KALİTELİ MODEL (araba, karakter, eşya): küplerden basit test modeli YAPMA. 1) Önce ücretsiz hazır model ara
+  (Sketchfab "downloadable", Poly Haven, BlenderKit ücretsiz); en iyi 2-3'ünü ad + kısa tarifle ask_user ile sor.
+  2) Seçileni browser ile indir, Blender'da Dosya > İçe Aktar ile görünür aç, istenen ayrıntıları ekleyip düzenle.
+  3) Hiçbiri beğenilmezse sıfırdan, insan gibi görünür modelle; acele etme, 30-60 dk sürebilir:
+     a) referans oranlar: kabaca bir küp → s ile gövde ölçüsü (ör. araba 4.5×1.8×1.4 m).
+     b) tab → ctrl+r ile 4-6 halka kesim → yüzleri e ile çıkar/g ile şekillendir (kaput, kabin, bagaj);
+        add modifier mirror (X) ile tek yarıyı modelle → ctrl+1/2 subdivision + shade smooth.
+     c) tekerlek: cylinder (32 köşe) → döndür, lastik + jant (i içe yüz, e çıkıntı) → shift+d ile 4'e çoğalt.
+     d) cam: kabin yüzlerini seç, shift+d ile ayır, cam malzemesi; farlar/stoplar: küçük yüzleri i + e.
+     e) iç mekân (istendiyse): koltuklar (kübü pahla, eğ), direksiyon (torus + göbek), H vites kolu ve tabanı,
+        3 pedal (gaz/fren/debriyaj), torpido.
+     f) malzemeler (gövde boyası, krom, lastik, cam, ışık) konsolda tek satırlarla; ışık + kamera ekle, render al.
+  Her parçadan sonra look_screen ile bak, kötüyse cmd+z ile geri al ve düzelt. Hedef: iyi oyun arabası seviyesi.
 - "Buraya / şuraya / gösterdiğim yere" = fare imlecinin yeri (pointer aracı). "Bu ana / şu saniyeye" = videodaki
   oynatma çizgisinin şu anki yeri (look_screen ile zamanı oku). Ör. "masaüstündeki resmi videoda bu ana, gösterdiğim
   yere koy": pointer(inside="video önizlemesi") ile oranı al → oynatma çizgisinin zamanını oku (ui_read/look_screen)
@@ -105,7 +120,8 @@ def run(task, ctx, llm, budget, history=None, hint=""):
                            machines=_machines(ctx))
     msgs = [{"role": "system", "content": system + ("\n" + hint if hint else "")},
             *(history or []), {"role": "user", "content": task}]
-    steps, schemas = [], T.schemas()
+    hidden = set() if BACKGROUND.search(task) else {"blender"}   # bpy arka planda: yalnız kullanıcı isterse
+    steps, schemas = [], [x for x in T.schemas() if x["function"]["name"] not in hidden]
     fails = 0                                  # üst üste başarısız adım
     while True:
         budget.turn()
@@ -134,7 +150,8 @@ def run(task, ctx, llm, budget, history=None, hint=""):
             if c.name == "ask_user":
                 fails = 0
             ctx.progress(c.name, c.args)
-            res, ran = T.call(ctx, c.name, c.args)
+            res, ran = (f"{c.name} şu an kapalı: görünür çalış (blender_ui)", False) if c.name in hidden \
+                else T.call(ctx, c.name, c.args)
             denied = res.startswith("KULLANICI REDDETTİ")
             steps.append({"tool": c.name, "args": c.args, "ok": ran, "denied": denied})
             if not ran and not denied:

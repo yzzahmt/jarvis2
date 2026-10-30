@@ -17,7 +17,7 @@ budget:
   max_task_seconds: 900
   max_context_chars: 20000
   max_cloud_calls_per_day: 600   # 9+ ücretsiz kaynak var; dolunca yalnız yerel
-  max_cloud_calls_per_task: 120  # uygulama içi uzun işler (CapCut, Unity) çok adım; yalnızca ücretsiz katmanlar (Claude kullanılmaz); 0 = bulut kapalı
+  max_cloud_calls_per_task: 400  # görünür Blender modelleme yüzlerce adım; yalnızca ücretsiz katmanlar (Claude kullanılmaz); 0 = bulut kapalı
   subagents: false
   dedupe_hours: 24
 
@@ -55,8 +55,8 @@ coder:                    # kodlama ajanı sırası (Claude yok)
   timeout_s: 900
 
 agent:                    # genel ajan (sabit komutlara uymayan istekler)
-  max_turns: 80            # uygulama içinde uzun işler (CapCut kurgusu, Unity) çok adım sürer
-  max_task_seconds: 2400
+  max_turns: 400           # görünür modelleme/kurgu yüzlerce adım sürer
+  max_task_seconds: 4500  # 75 dk: Blender'da sıfırdan model 30-60 dk
   skills: true            # başarılı görevlerin adımlarını beceri olarak sakla
   macros: config/macros.yaml
 

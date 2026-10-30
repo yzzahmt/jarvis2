@@ -161,3 +161,6 @@ Görünür çalışma (klavye/fare, blender_ui, kayan imleç, ekran işinde alt 
 
 ## 035 (30.10.2026)
 Kendi sesiyle söz kesme (yankı oranı her konuşmada ölçülür), yankı kırıntısı atılır, bitiş sessizliği 1,8 sn + yarım cümlede devam. 73 test. Ayrıntı: yenilikler/035.
+
+## 036 (30.10.2026)
+Blender: eski araba becerisi silindi, bpy aracı yalnız "arka planda" denirse açılıyor, kaliteli model akışı eklendi (önce hazır model, beğenilmezse görünür sıfırdan modelleme). Ajan 400 tur / 75 dk, bulutta görev başına 400 çağrı. 73 test. Ayrıntı: yenilikler/036.
