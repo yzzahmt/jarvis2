@@ -163,9 +163,12 @@ Büyük yükseltme (26-31, kullanıcı "her şeyi yapabilsin" dedi, 5 aşama):
    kendi kopyası, Jarvis dokunmaz. Jarvis'in Blender ayarları data/blender-user'da (033). JARVIS MAC DİSKİNDE YER KAPLAMAZ. Blender → FBX → Unity zinciri denendi, çalışıyor (032).
  5 Güçlü beyin: strong katmanı (gemini-3.5-flash ×2, dakikada 5/anahtar) ajanda önce; sohbet ve görme lite.
 İzinler (JARVIS.app): Erişilebilirlik, Ekran Kaydı, Mikrofon, Giriş İzleme (gösterip öğretmede klavye).
+Görünür mod (34): ajan işleri ekranda klavye/fareyle yapar (talimat "GÖRÜNÜR ÇALIŞ"); Blender için blender_ui
+(open/viewport/console/layout) + kısayol rehberi; arka plan araçları yalnız istenirse/olmazsa. İmleç görünür kayar.
+Ekran işi başlayınca ana pencere alt çubuğa iner. Mikrofon kapatma düğmesi (ana pencere + çubuk). Arayüz: koyu HUD.
 Sıradaki: kullanıcı sesli dener (Unity/Blender araba, CapCut'ta resmi imlecin yerine koyma, "sana göstereyim");
 günlükteki "süre:" satırlarına bak.
-Testler: 71. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
+Testler: 72. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
 
 Bilinen sorunlar:
 - CAPTCHA ve SMS kodunu Jarvis geçemez; kullanıcıya sorar.

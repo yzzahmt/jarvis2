@@ -5,10 +5,11 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 from .. import config
-from .tools import I, S, clip, tool
+from .tools import I, S, _glide, _locate, _screen_size, clip, t_click_on, tool
 
 BLENDER = config.path("data/apps/Blender.app/Contents/MacOS/Blender")
 FONT = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
@@ -196,6 +197,11 @@ def t_look_image(ctx, path, question):
         tmp.unlink(missing_ok=True)
 
 
+def _blender_env():
+    """Blender ayar/önbelleği HDD'de kalsın (Mac diskinde ~/Library'ye yazmasın)."""
+    return {**os.environ, "BLENDER_USER_RESOURCES": str(config.path("data/blender-user"))}
+
+
 BLENDER_PRE = """import bpy, bmesh, math, mathutils, os, sys
 from mathutils import Vector, Euler
 def jarvis_render(path, res=900):
@@ -261,11 +267,85 @@ def t_blender(ctx, code, file="", save="", render=""):
     f.write_text(script, encoding="utf-8")
     args = [str(BLENDER), "-b", *([_p(file)] if file else []), "--python-exit-code", "1", "--python", str(f)]
     try:
-        # Blender ayar/önbelleği de HDD'de kalsın (Mac diskinde ~/Library'ye yazmasın)
-        env = {**os.environ, "BLENDER_USER_RESOURCES": str(config.path("data/blender-user"))}
-        r = subprocess.run(args, capture_output=True, text=True, timeout=900, env=env)
+        r = subprocess.run(args, capture_output=True, text=True, timeout=900, env=_blender_env())
     except subprocess.TimeoutExpired:
         return "Blender 900 sn içinde bitmedi"
     out = r.stdout + r.stderr
     keep = [ln for ln in out.splitlines() if ln.startswith("JARVIS") or re.search(r"Error|Traceback|line \d+", ln)]
     return clip(f"[çıkış {r.returncode}]\n" + ("\n".join(keep[-40:]) or out[-1200:]), 3000)
+
+
+# ---------------- Blender (görünür, klavye/fare) ----------------
+def _blender_window():
+    """Blender penceresinin (x, y, w, h) değeri; yoksa None."""
+    r = subprocess.run(["osascript", "-e", 'tell application "System Events" to tell process "Blender" to '
+                        'get {position, size} of window 1'], capture_output=True, text=True, timeout=10)
+    nums = [int(n) for n in re.findall(r"-?\d+", r.stdout)]
+    return tuple(nums) if len(nums) == 4 else None
+
+
+def _activate_blender():
+    subprocess.run(["osascript", "-e", 'tell application "System Events" to set frontmost of process "Blender" to true'],
+                   capture_output=True, timeout=10)
+    time.sleep(0.4)
+
+
+@tool("blender_ui", "Blender'ı EKRANDA kullanmak için (kullanıcı canlı izler). action: open (Blender'ı açar, pencereyi "
+      "ekrana yayar; file=.blend/.fbx/.obj açar) | viewport (Blender'ı öne alır, fareyi 3B görünümün ortasına götürür; "
+      "kısayollardan önce şart) | console (Scripting alanında Python Konsolu'na geçer, fare konsolun üstünde) | "
+      "layout (Layout çalışma alanına döner).", info=False,
+      action=S("open|viewport|console|layout"), file=S("açılacak dosya", optional=True))
+def t_blender_ui(ctx, action, file=""):
+    if action == "open":
+        if not BLENDER.exists():
+            return "Blender kurulu değil (data/apps/Blender.app)"
+        if _blender_window() is None:
+            args = [str(BLENDER)] + ([_p(file)] if file else [])
+            subprocess.Popen(args, env=_blender_env(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True)
+            for _ in range(60):
+                time.sleep(1)
+                if _blender_window():
+                    break
+            else:
+                return "Blender penceresi 60 sn içinde açılmadı"
+            time.sleep(2)
+        _activate_blender()
+        w, h = _screen_size()
+        subprocess.run(["osascript", "-e", 'tell application "System Events" to tell process "Blender" to '
+                        f'set {{position, size}} of window 1 to {{{{0, 25}}, {{{w}, {h - 25}}}}}'],
+                       capture_output=True, timeout=10)
+        time.sleep(0.6)
+        _glide(*_viewport_point())
+        _press("esc")                      # açılış ekranını kapat
+        return "Blender açık, fare 3B görünümde. Başlangıçta küp, kamera ve ışık var."
+    if _blender_window() is None:
+        return "Blender açık değil (önce blender_ui open)"
+    _activate_blender()
+    if action == "viewport":
+        _glide(*_viewport_point())
+        return "fare 3B görünümde; kısayollar hazır"
+    if action in ("layout", "console"):
+        r = t_click_on(ctx, f"Blender penceresinin en üstündeki '{'Scripting' if action == 'console' else 'Layout'}' "
+                            "çalışma alanı sekmesi")
+        time.sleep(0.8)
+        if action == "layout":
+            _glide(*_viewport_point())
+            return "Layout alanı; " + r
+        loc, why = _locate(ctx, "Blender'daki Python Console paneli (>>> istemi olan koyu alan)")
+        if not loc:
+            return "konsol bulunamadı: " + why
+        _glide(loc[0], loc[1])
+        return "Python Konsolu hazır, fare üstünde: type_text ile tek satır yaz, enter bas"
+    return "bilinmeyen action"
+
+
+def _viewport_point():
+    """Varsayılan Layout'ta 3B görünüm pencerenin sol-üst ~%75'i: ortasına yakın bir nokta."""
+    x, y, w, h = _blender_window() or (0, 25, *_screen_size())
+    return x + w * 0.4, y + h * 0.42
+
+
+def _press(keys):
+    from .tools import t_keys
+    t_keys(None, keys)

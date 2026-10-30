@@ -243,26 +243,45 @@ def t_type(ctx, text):
     return "yazıldı"
 
 
-@tool("press_keys", "Tuş kombinasyonu basar, ör. 'cmd+space', 'enter', 'cmd+shift+n'.", info=False, keys=S("tuşlar"))
+@tool("press_keys", "Tuş kombinasyonu basar, ör. 'cmd+space', 'enter', 'cmd+shift+n'. Boşlukla ayrılmış birden çok "
+      "kombinasyon sırayla basılır, ör. Blender'da 's x 2 enter' ya da 'tab ctrl+r'.", info=False, keys=S("tuşlar"))
 def t_keys(ctx, keys):
     kb, Key = _kb()
     names = {"cmd": Key.cmd, "ctrl": Key.ctrl, "alt": Key.alt, "option": Key.alt, "shift": Key.shift,
              "enter": Key.enter, "return": Key.enter, "tab": Key.tab, "esc": Key.esc, "space": Key.space,
              "up": Key.up, "down": Key.down, "left": Key.left, "right": Key.right, "backspace": Key.backspace,
-             "delete": Key.delete}
-    seq = [names.get(k.strip().lower(), k.strip()) for k in keys.split("+")]
-    for k in seq:
-        kb.press(k)
-    for k in reversed(seq):
-        kb.release(k)
-    time.sleep(0.3)
+             "delete": Key.delete, "home": Key.home, "end": Key.end, "pageup": Key.page_up, "pagedown": Key.page_down}
+    names.update({f"f{i}": getattr(Key, f"f{i}") for i in range(1, 13)})
+    keys = re.sub(r"\s*\+\s*", "+", keys.strip())          # "cmd + s" → "cmd+s"
+    combos = keys.split() or [keys]
+    for combo in combos:
+        seq = [names.get(k.strip().lower(), k.strip()) for k in combo.split("+")]
+        for k in seq:
+            kb.press(k)
+        for k in reversed(seq):
+            kb.release(k)
+        time.sleep(0.3 if len(combos) == 1 else 0.18)
     return "basıldı"
 
 
-def _mouse_click(x, y, button="left", count=1):
-    from pynput.mouse import Button, Controller
+def _glide(x, y, secs=0.35):
+    """Fareyi hedefe ışınlamadan, görünür biçimde kaydırır (kullanıcı ne yapıldığını izleyebilsin)."""
+    from pynput.mouse import Controller
     m = Controller()
+    sx, sy = m.position
+    n = max(1, int(secs / 0.015))
+    for i in range(1, n + 1):
+        t = i / n
+        t = t * t * (3 - 2 * t)                    # yumuşak başla, yumuşak dur
+        m.position = (sx + (x - sx) * t, sy + (y - sy) * t)
+        time.sleep(0.015)
     m.position = (int(x), int(y))
+    return m
+
+
+def _mouse_click(x, y, button="left", count=1):
+    from pynput.mouse import Button
+    m = _glide(x, y)
     time.sleep(0.05)
     m.click({"right": Button.right}.get(button, Button.left), 2 if count == 2 or button == "double" else 1)
 
@@ -383,9 +402,8 @@ def t_drag_on(ctx, source, to_target="", dx=0, dy=0):
 
 
 def _drag(x, y, tx, ty, steps=20):
-    from pynput.mouse import Button, Controller
-    m = Controller()
-    m.position = (int(x), int(y))
+    from pynput.mouse import Button
+    m = _glide(int(x), int(y))
     time.sleep(0.1)
     m.press(Button.left)
     for i in range(1, steps + 1):          # yavaş hareket: uygulamalar sürüklemeyi algılasın
@@ -403,7 +421,7 @@ def t_mouse(ctx, action, amount=5, x=None, y=None, to_x=None, to_y=None):
     from pynput.mouse import Button, Controller
     m = Controller()
     if x is not None and y is not None:
-        m.position = (int(x), int(y))
+        _glide(int(x), int(y))
     if action == "scroll":
         m.scroll(0, -int(amount))
     elif action == "drag" and to_x is not None and to_y is not None:

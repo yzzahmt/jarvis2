@@ -155,3 +155,6 @@ Blender 5.2.3 HDD'ye kuruldu (7-Zip ile); blender aracı ve Blender → FBX → 
 
 ## 033 (30.10.2026)
 Blender yalnız HDD'den (data/apps), ayarları data/blender-user'da; /Applications'taki kullanıcının kendi kopyası. Ayrıntı: yenilikler/033.
+
+## 034 (30.10.2026)
+Görünür çalışma (klavye/fare, blender_ui, kayan imleç, ekran işinde alt çubuğa iner), mikrofon kapatma düğmesi, futuristik HUD arayüz. 72 test. Ayrıntı: yenilikler/034.

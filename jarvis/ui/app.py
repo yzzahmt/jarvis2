@@ -37,6 +37,9 @@ class Api:
     def mic(self):
         return self._app.mic()
 
+    def mute(self):
+        return self._app.mute()
+
     def stop(self):
         self._app.submit("dur", show=False)
 
@@ -85,6 +88,9 @@ class BarApi:
 
     def mic(self):
         return self._app.mic()
+
+    def mute(self):
+        return self._app.mute()
 
     def stop(self):
         self._app.submit("dur", show=False)
@@ -234,7 +240,14 @@ class App:
             self.push("task_end", ok=d["ok"], text=d["text"])
             self.bars.done(d["ok"], d["text"][:90])
 
+    # ekranda fare/klavyeyle çalışırken ana pencere yolu kapatmasın: alt çubuğa iner, kullanıcı işi izler
+    SCREEN_TOOLS = {"blender_ui", "click", "click_on", "drag_on", "mouse", "press_keys", "type_text", "ui_click",
+                    "ui_type", "ui_menu"}
+
     def on_step(self, name, args):
+        if name in self.SCREEN_TOOLS and not self.docked and getattr(self, "visible", True):
+            self.dock(True)
+            time.sleep(0.3)
         text = step_label(name, args)
         self.push("step", text=text, tool=name)
         self.bars.step(step_machine(name, args, self.task_machine), text, self.task_title)
@@ -356,9 +369,20 @@ class App:
             pass
         self.state("idle")
 
+    def mute(self):
+        """Mikrofonu kapatır/açar. Kapalıyken hiçbir şey dinlenmez (uyandırma kelimesi ve alkış da)."""
+        if not self.voice:
+            return None
+        on = self.voice.mic.toggle()
+        self.push("muted", on=not on)
+        self._dock_msg({"t": "muted", "on": not on})
+        return not on
+
     def mic(self):
         if not self.voice:
             return self.voice_msg
+        if not self.voice.mic.enabled.is_set():      # kapalıyken konuş düğmesi mikrofonu açar
+            self.mute()
         self.voice.tts.stop()
         self.voice.wake_evt.set()
         return ""

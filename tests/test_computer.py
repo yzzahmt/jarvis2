@@ -181,3 +181,24 @@ def test_blender_builds_saves_renders(tmp_path):
     assert (tmp_path / "a.blend").exists() and (tmp_path / "a.png").stat().st_size > 5000
     bad = M.t_blender(None, "olmayan_fonksiyon()")
     assert "çıkış 0" not in bad and "NameError" in bad
+
+
+def test_visible_mode_keys_and_blender_ui(monkeypatch):
+    # 033: tuş dizileri sırayla basılır, fare görünür kayar, Blender ayarları HDD'de, ajan görünür çalışır
+    from jarvis.agent import loop, media as M, tools as T
+    pressed = []
+
+    class KB:
+        def press(self, k): pressed.append(("+", k))
+        def release(self, k): pressed.append(("-", k))
+    monkeypatch.setattr(T, "_kb", lambda: (KB(), __import__("pynput.keyboard", fromlist=["Key"]).Key))
+    monkeypatch.setattr(T.time, "sleep", lambda s: None)
+    T.t_keys(None, "s x 2 enter")
+    assert [k for d, k in pressed if d == "+"][:3] == ["s", "x", "2"]
+    pressed.clear()
+    T.t_keys(None, "cmd + s")
+    assert len([1 for d, _ in pressed if d == "+"]) == 2          # tek kombinasyon
+    assert "data/blender-user" in M._blender_env()["BLENDER_USER_RESOURCES"].replace("\\", "/")
+    assert "blender_ui" in T.TOOLS and "GÖRÜNÜR ÇALIŞ" in loop.SYSTEM
+    from jarvis.ui.labels import step_label
+    assert step_label("blender_ui", {"action": "open"}) == "Blender açılıyor"
