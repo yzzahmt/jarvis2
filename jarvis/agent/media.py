@@ -1,6 +1,6 @@
 """Medya araçları: video (ffmpeg, kare hassasiyetinde), Blender (Python ile 3B model), görsel inceleme.
 Fareyle uygulama kullanmaktan çok daha güvenilir: "resmi 12. saniyede sağ üste koy" tek komut.
-ffmpeg venv'deki imageio-ffmpeg'den, Blender data/apps/Blender.app'ten (ikisi de HDD'de)."""
+ffmpeg venv'deki imageio-ffmpeg'den, Blender data/apps/Blender.app'ten (HDD), yoksa /Applications'tan."""
 import os
 import re
 import subprocess
@@ -10,7 +10,9 @@ from pathlib import Path
 from .. import config
 from .tools import I, S, clip, tool
 
-BLENDER = config.path("data/apps/Blender.app/Contents/MacOS/Blender")
+_BLENDERS = [config.path("data/apps/Blender.app/Contents/MacOS/Blender"),
+             Path("/Applications/Blender.app/Contents/MacOS/Blender")]
+BLENDER = next((b for b in _BLENDERS if b.exists()), _BLENDERS[0])
 FONT = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
 N = {"type": "number", "optional": True}
 
@@ -246,7 +248,7 @@ def jarvis_render(path, res=900):
       save=S("kaydedilecek .blend yolu", optional=True), render=S("önizleme png yolu", optional=True))
 def t_blender(ctx, code, file="", save="", render=""):
     if not BLENDER.exists():
-        return "Blender kurulu değil (data/apps/Blender.app)"
+        return "Blender kurulu değil (data/apps/Blender.app veya /Applications)"
     script = BLENDER_PRE + "\n" + code + "\n"
     if save:
         sp = _p(save)
