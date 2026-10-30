@@ -158,3 +158,6 @@ Blender yalnız HDD'den (data/apps), ayarları data/blender-user'da; /Applicatio
 
 ## 034 (30.10.2026)
 Görünür çalışma (klavye/fare, blender_ui, kayan imleç, ekran işinde alt çubuğa iner), mikrofon kapatma düğmesi, futuristik HUD arayüz. 72 test. Ayrıntı: yenilikler/034.
+
+## 035 (30.10.2026)
+Kendi sesiyle söz kesme (yankı oranı her konuşmada ölçülür), yankı kırıntısı atılır, bitiş sessizliği 1,8 sn + yarım cümlede devam. 73 test. Ayrıntı: yenilikler/035.

@@ -202,3 +202,14 @@ def test_visible_mode_keys_and_blender_ui(monkeypatch):
     assert "blender_ui" in T.TOOLS and "GÖRÜNÜR ÇALIŞ" in loop.SYSTEM
     from jarvis.ui.labels import step_label
     assert step_label("blender_ui", {"action": "open"}) == "Blender açılıyor"
+
+
+def test_self_echo_fragment_and_hanging():
+    # 035: tek kelimelik yankı kırıntısı kendi sesi sayılır; yarım cümle tanınır
+    import time
+    from jarvis.voice.loop import HANGING, VoiceLoop
+    v = VoiceLoop.__new__(VoiceLoop)
+    v.said = ("Kaliteli ve detaylı bir araba modeli aramaya başlıyorum.", time.time())
+    assert v.heard_self("Kalite") and v.heard_self("araba modeli")
+    assert not v.heard_self("Kırmızı yap")
+    assert HANGING.search("Ama dediğim gibi yani") and not HANGING.search("Blender'da araba yap")

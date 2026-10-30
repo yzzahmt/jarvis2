@@ -3,6 +3,7 @@ Bileşenler bağımsız: uyandırma kelimesi, alkış veya kısayol çökerse di
 Mikrofon yoksa metin moduna düşer. Ses verisi diske/buluta gitmez."""
 import itertools
 import queue
+import re
 import sys
 import threading
 import time
@@ -155,6 +156,8 @@ class VoiceLoop:
             return False
         from .speech_to_text import _words
         a, b = _words(text), set(_words(said))
+        if a and len(a) <= 2:                # yankı kırıntısı: söylediği kelimenin başı ("Kaliteli" → "Kalite")
+            return all(any(x.startswith(w[:max(4, len(w) - 1)]) for x in b) for w in a)
         return len(a) >= 2 and sum(w in b for w in a) / len(a) >= 0.8
 
     def strip_self(self, text) -> str:
@@ -208,15 +211,19 @@ class VoiceLoop:
             ring.append(f)
             lvl, play = _rms(f), self.tts.echo_level()
             woke = bool(play is None and self.ww and self.ww.feed(f))   # kendi sesindeki 'Jarvis' kesmesin
-            if play is None or time.time() - t0 < 0.4:                  # yerel ses / ilk an: enerjiyle kesme yok
+            if play is None:                                            # yerel ses: enerjiyle kesme yok
                 hot = 0
+            elif time.time() - t0 < 0.8:     # ilk an: yalnız yankı oranını ölç (mikrofon 33→80 olunca 0,06 tutmuyordu)
+                hot = 0
+                if play > 0.01:
+                    gain = max(gain, min(lvl / play, 0.6))
             elif lvl > k * gain * play + floor:
                 hot += 1
             else:
                 hot = 0
                 if play > 0.01:
                     gain = max(0.97 * gain, min(lvl / play, 0.15), 0.03)   # yankı oranının üst zarfı
-            if hot >= 4 or woke:             # ~0,3 sn süren konuşma: söze girince hemen sus, dinle
+            if hot >= 7 or woke:             # ~0,55 sn süren konuşma: söze girince hemen sus, dinle
                 self.tts.stop()
                 status("SÖZÜM KESİLDİ — dinliyorum")
                 return list(ring)
@@ -311,7 +318,8 @@ class VoiceLoop:
                 return
             self.ui.state("listening")
             st: dict = {}
-            audio = record_utterance(self.mic.frames(), RATE, start_timeout=8, stats=st, preroll=self._take_preroll())
+            audio = record_utterance(self.mic.frames(), RATE, start_timeout=8, stats=st, preroll=self._take_preroll(),
+                                     silence=self.v.get("end_silence", 1.8))
             if audio is None:
                 status(f"duyulmadı (en yüksek seviye {st.get('peak')}, eşik {st.get('th')})")
                 continue
@@ -330,6 +338,14 @@ class VoiceLoop:
             if self.stt.rejected:
                 status(f"yok sayıldı (uydurma olabilir): {self.stt.rejected}")
                 self.stt.rejected = ""
+            for _ in range(3):               # cümle yarım kaldıysa ("…ama", "…yani gerçek") devamını da dinle
+                if not text or not HANGING.search(text):
+                    break
+                self.ui.message("jarvis-interim", text + " …")
+                more = record_utterance(self.mic.frames(), RATE, start_timeout=4, silence=self.v.get("end_silence", 1.8))
+                if more is None:
+                    break
+                text = (text + " " + self.stt.transcribe(more)).strip()
             if not text or len(norm(text)) < 2:
                 continue
             if self.heard_self(text):
@@ -382,6 +398,11 @@ class VoiceLoop:
         while True:
             self.sleep_mode()
             self.active_mode()
+
+
+# sonu bağlaç/dolgu sözüyle biten cümle bitmemiştir
+HANGING = re.compile(r"(\b(ama|ve|veya|ya da|yani|gibi|sonra|ondan sonra|çünkü|ki|için|de|da|mesela|hani|şey|bir)|,)\s*$",
+                     re.I)
 
 
 def main():

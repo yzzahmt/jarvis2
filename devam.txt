@@ -166,9 +166,11 @@ Büyük yükseltme (26-31, kullanıcı "her şeyi yapabilsin" dedi, 5 aşama):
 Görünür mod (34): ajan işleri ekranda klavye/fareyle yapar (talimat "GÖRÜNÜR ÇALIŞ"); Blender için blender_ui
 (open/viewport/console/layout) + kısayol rehberi; arka plan araçları yalnız istenirse/olmazsa. İmleç görünür kayar.
 Ekran işi başlayınca ana pencere alt çubuğa iner. Mikrofon kapatma düğmesi (ana pencere + çubuk). Arayüz: koyu HUD.
+Ses (35): yankı oranı her konuşmanın ilk 0,8 sn'sinde ölçülür (mikrofon 80'de eski oran kendi sesiyle kesiyordu);
+kırıntı yankı atılır; bitiş sessizliği 1,8 sn (voice.end_silence), "ama/yani…" ile biten cümlede dinlemeye devam.
 Sıradaki: kullanıcı sesli dener (Unity/Blender araba, CapCut'ta resmi imlecin yerine koyma, "sana göstereyim");
 günlükteki "süre:" satırlarına bak.
-Testler: 72. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
+Testler: 73. Her değişiklikten sonra: devam.txt + yenilikler + commit + push (kullanıcı isteği).
 
 Bilinen sorunlar:
 - CAPTCHA ve SMS kodunu Jarvis geçemez; kullanıcıya sorar.
